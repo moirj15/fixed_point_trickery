@@ -1,0 +1,26 @@
+{
+  "dependencies": [
+    {
+      "name": "sdl2",
+      "features": [
+        "vulkan"
+      ]
+    },
+    "vk-bootstrap",
+    "vulkan-memory-allocator",
+    "glm",
+    "vulkan",
+    {
+      "name": "imgui",
+      "features": [
+        "vulkan-binding"
+      ]
+    },
+    "tinyobjloader",
+    "assimp",
+    "catch2",
+    "vulkan-headers"
+  ],
+  "version": "0.0",
+  "name": "fixed-point-trickery"
+}
