@@ -10,9 +10,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
-find_package(vk-bootstrap CONFIG REQUIRED)
-find_package(VulkanHeaders CONFIG REQUIRED)
-find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(directxtk CONFIG REQUIRED)
 
 find_program(SLANGC slangc HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
 
@@ -42,19 +40,26 @@ add_executable(fixed_point_trickery
   src/main.cpp
 )
 
-target_sources(fixed_point_trickery PUBLIC FILE_SET CXX_MODULES FILES
-  src/RendererInit.ixx
-)
-
 target_compile_features(fixed_point_trickery PRIVATE cxx_std_23)
 target_link_libraries(fixed_point_trickery PRIVATE
   SDL2::SDL2
   SDL2::SDL2main
   imgui::imgui
   assimp::assimp
-  vk-bootstrap::vk-bootstrap
-  vk-bootstrap::vk-bootstrap-compiler-warnings
-  Vulkan::Headers
-  GPUOpen::VulkanMemoryAllocator
-
+  Microsoft::DirectXTK
+  gdi32.lib
+  user32.lib
+  kernel32.lib
+  msvcrtd.lib
+  winmm.lib
+  imm32.lib
+  version.lib
+  libcmt.lib
+  dxgi.lib
+  dxguid.lib
+  winmm.lib
+  gdi32
+  Setupapi.lib
+  d3d11.lib
+  d3dcompiler.lib
 )

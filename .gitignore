@@ -2,3 +2,6 @@
 build
 vcpkg
 vcpkg_installed
+.vs
+*.spv
+vc140.pdb
