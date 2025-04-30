@@ -19,6 +19,8 @@ VSOut VSMain(uint vertexID: SV_VertexID)
 		float3(1.0f, 0.0f, 0.0f), //red
 		float3(0.0f, 1.0f, 0.0f), //green
 		float3(0.f, 0.0f, 1.0f)  //blue
+
+
 	};
 
     return {float4(positions[vertexID].xyz, 1.0f), colors[vertexID]};
@@ -29,7 +31,7 @@ struct PSIn {
 }
 
 [shader("pixel")]
-float4 PSMain(PSIn input) 
+float4 PSMain(PSIn input) : SV_Target
 {
 	return float4(input.color,1.0f);
 }

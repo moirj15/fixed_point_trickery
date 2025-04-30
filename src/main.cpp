@@ -4,6 +4,7 @@
 #include <cassert>
 #include <d3d11_3.h>
 #include <d3d11shader.h>
+#include <directxtk/BufferHelpers.h>
 #include <iostream>
 #include <wrl/client.h>
 
@@ -24,6 +25,37 @@ constexpr u32 WIDTH  = 1920;
 constexpr u32 HEIGHT = 1080;
 
 using Microsoft::WRL::ComPtr;
+#include <exception>
+
+namespace DX
+{
+// Helper class for COM exceptions
+class com_exception : public std::exception
+{
+public:
+  com_exception(HRESULT hr) :
+      mResult{hr}, mMessage{std::format("Failure with HRESULT of {:#8X}", mResult)}
+  {
+  }
+
+  const char *what() const noexcept override
+  {
+    return mMessage.c_str();
+  }
+
+private:
+  HRESULT     mResult;
+  std::string mMessage;
+};
+
+// Helper utility converts D3D API failures into exceptions.
+inline void ThrowIfFailed(HRESULT hr)
+{
+  if (FAILED(hr)) {
+    throw com_exception(hr);
+  }
+}
+} // namespace DX
 
 constexpr void Check(HRESULT result)
 {
@@ -42,6 +74,15 @@ struct RenderContext
   ComPtr<ID3D11RenderTargetView> m_backbuffer_render_target_view;
   ComPtr<ID3D11Texture2D>        m_depth_stencil_buffer;
   ComPtr<ID3D11DepthStencilView> m_depth_stencil_view;
+
+  ID3D11Device3 *Device() const
+  {
+    return m_device.Get();
+  }
+  ID3D11DeviceContext3 *DeviceContext() const
+  {
+    return m_context.Get();
+  }
 };
 
 RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_height)
@@ -113,13 +154,14 @@ RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_heigh
   // clang-format on
 
   Microsoft::WRL::ComPtr<IDXGIDevice> dxgiDevice;
-  Check(context.m_device->QueryInterface(__uuidof(IDXGIDevice), &dxgiDevice));
+  DX::ThrowIfFailed(context.m_device->QueryInterface(__uuidof(IDXGIDevice), &dxgiDevice));
   Microsoft::WRL::ComPtr<IDXGIAdapter> adapter;
-  Check(dxgiDevice->GetParent(__uuidof(IDXGIAdapter), &adapter));
+  DX::ThrowIfFailed(dxgiDevice->GetParent(__uuidof(IDXGIAdapter), &adapter));
   Microsoft::WRL::ComPtr<IDXGIFactory> factory;
-  Check(adapter->GetParent(__uuidof(IDXGIFactory), &factory));
+  DX::ThrowIfFailed(adapter->GetParent(__uuidof(IDXGIFactory), &factory));
 
-  Check(factory->CreateSwapChain(context.m_device.Get(), &swapChainDesc, &context.m_swapchain));
+  DX::ThrowIfFailed(
+    factory->CreateSwapChain(context.m_device.Get(), &swapChainDesc, &context.m_swapchain));
 
   context.m_swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), &context.m_backbuffer);
   context.m_device->CreateRenderTargetView(
@@ -145,8 +187,9 @@ RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_heigh
     .MiscFlags      = 0,
   };
 
-  Check(context.m_device->CreateTexture2D(&depthStencilDesc, 0, &context.m_depth_stencil_buffer));
-  Check(context.m_device->CreateDepthStencilView(
+  DX::ThrowIfFailed(
+    context.m_device->CreateTexture2D(&depthStencilDesc, 0, &context.m_depth_stencil_buffer));
+  DX::ThrowIfFailed(context.m_device->CreateDepthStencilView(
     context.m_depth_stencil_buffer.Get(),
     0,
     &context.m_depth_stencil_view));
@@ -170,9 +213,6 @@ int main(int argc, char **argv)
     SDL_WINDOW_SHOWN);
 
   assert(window != nullptr);
-
-  // Don't resize window so it doesn't mess with tiling window managers
-  SDL_SetWindowResizable(window, SDL_FALSE);
 
   SDL_SysWMinfo win_info;
   SDL_VERSION(&win_info.version);
