@@ -4,6 +4,7 @@
 #include <cassert>
 #include <d3d11_3.h>
 #include <d3d11shader.h>
+#include <d3dcompiler.h>
 #include <directxtk/BufferHelpers.h>
 #include <iostream>
 #include <wrl/client.h>
@@ -201,6 +202,42 @@ RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_heigh
   return context;
 }
 
+struct RenderPipeline
+{
+  ComPtr<ID3D11VertexShader>    vertexShader;
+  ComPtr<ID3D11PixelShader>     pixelShader;
+  ComPtr<ID3D11RasterizerState> rasterizerState;
+};
+
+std::string ReadFile(std::string_view path)
+{
+  FILE *file = fopen(path.data(), "rb");
+  assert(file);
+
+  fseek(file, 0, SEEK_END);
+  u64 length = ftell(file);
+  rewind(file);
+  assert(length > 0);
+
+  std::string data(length, 0);
+
+  fread(data.data(), sizeof(u8), length, file);
+  fclose(file);
+
+  return data;
+}
+
+RenderPipeline CreatePipeline(std::string_view vertexPath, std::string_view pixelPath)
+{
+  ComPtr<ID3D10Blob> vertexByteCode;
+  ComPtr<ID3D10Blob> pixelByteCode;
+
+  D3DReadFileToBlob(reinterpret_cast<LPCWSTR>(vertexPath.data()), vertexByteCode.GetAddressOf());
+  D3DReadFileToBlob(reinterpret_cast<LPCWSTR>(pixelPath.data()), pixelByteCode.GetAddressOf());
+
+  return {};
+}
+
 int main(int argc, char **argv)
 {
   assert(SDL_Init(SDL_INIT_VIDEO) == 0);
@@ -219,8 +256,11 @@ int main(int argc, char **argv)
   SDL_GetWindowWMInfo(window, &win_info);
   HWND hwnd = win_info.info.win.window;
 
-  RenderContext ctx          = InitContext(hwnd, WIDTH, HEIGHT);
-  f32           clearColor[] = {0.5, 0.5, 0.5, 1.0};
+  RenderContext ctx = InitContext(hwnd, WIDTH, HEIGHT);
+
+  // RenderPipeline colordNormalsPipeline = CreatePipeline("shaders/colored_normals.")
+
+  f32 clearColor[] = {0.5, 0.5, 0.5, 1.0};
   ctx.m_context->ClearRenderTargetView(ctx.m_backbuffer_render_target_view.Get(), clearColor);
   ctx.m_swapchain->Present(1, 0);
 
