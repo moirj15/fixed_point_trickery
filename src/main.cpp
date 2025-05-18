@@ -8,6 +8,7 @@
 #include <d3dcompiler.h>
 #include <directxtk/BufferHelpers.h>
 #include <filesystem>
+#include <glm/glm.hpp>
 #include <glm/vec3.hpp>
 #include <iostream>
 #include <span>
@@ -320,6 +321,30 @@ ComPtr<ID3D11Buffer> CreateIndexBuffer(ID3D11Device3 *device, u32 size, std::spa
   return indexBuffer;
 }
 
+template<typename T>
+ComPtr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device3 *device, const T *data)
+{
+  D3D11_BUFFER_DESC desc = {
+    .ByteWidth           = sizeof(T),
+    .Usage               = D3D11_USAGE_DYNAMIC,
+    .BindFlags           = D3D11_BIND_CONSTANT_BUFFER,
+    .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
+    .MiscFlags           = {},
+    .StructureByteStride = {},
+  };
+
+  ID3D11Buffer *constantBuffer{};
+  if (data == nullptr) {
+    device->CreateBuffer(&desc, nullptr, &constantBuffer);
+  } else {
+    D3D11_SUBRESOURCE_DATA d{};
+    d.pSysMem = data;
+    device->CreateBuffer(&desc, &d, &constantBuffer);
+  }
+
+  return constantBuffer;
+}
+
 int main(int argc, char **argv)
 {
   assert(SDL_Init(SDL_INIT_VIDEO) == 0);
@@ -347,8 +372,11 @@ int main(int argc, char **argv)
 
   std::array tri = {
     glm::vec3{0, 1, 0},
+    glm::normalize(glm::vec3{0, 1, 0}),
     glm::vec3{-1, -1, 0},
+    glm::normalize(glm::vec3{-1, -1, 0}),
     glm::vec3{1, -1, 0},
+    glm::normalize(glm::vec3{1, -1, 0}),
   };
 
   std::array<u32, 3> indices = {0, 1, 2};
@@ -368,13 +396,31 @@ int main(int argc, char **argv)
 
   ComPtr<ID3D11Buffer> ib = CreateIndexBuffer<u32>(ctx.m_device.Get(), sizeof(indices), indices);
 
+  const glm::mat4      mvp = glm::mat4{1.0};
+  ComPtr<ID3D11Buffer> cb  = CreateConstantBuffer<glm::mat4x4>(ctx.m_device.Get(), &mvp);
+
   f32 clearColor[] = {0.5, 0.5, 0.5, 1.0};
+  ctx.m_context->RSSetState(colordNormalsPipeline.rasterizerState.Get());
+  D3D11_VIEWPORT viewport = {
+    .TopLeftX = 0.0f,
+    .TopLeftY = 0.0f,
+    .Width    = static_cast<f32>(WIDTH),
+    .Height   = static_cast<f32>(HEIGHT),
+    .MinDepth = 0.0,
+    .MaxDepth = 1.0,
+  };
+  ctx.m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  ctx.m_context->IASetIndexBuffer(ib.Get(), DXGI_FORMAT_R32_UINT, 0);
+  ctx.m_context->RSSetViewports(1, &viewport);
   ctx.m_context->ClearRenderTargetView(ctx.m_backbuffer_render_target_view.Get(), clearColor);
   ctx.m_swapchain->Present(1, 0);
   ctx.m_context->VSSetShader(colordNormalsPipeline.vertexShader.Get(), nullptr, 0);
   ctx.m_context->PSSetShader(colordNormalsPipeline.pixelShader.Get(), nullptr, 0);
   std::array resourceViews = {vbView.Get()};
   ctx.m_context->VSSetShaderResources(0, 1, resourceViews.data());
+  ctx.m_context->VSSetConstantBuffers(0, 1, cb.GetAddressOf());
+  ctx.m_context->Draw(3, 0);
+  ctx.m_swapchain->Present(1, 0);
 
   SDL_Event e;
   bool      running = true;
@@ -384,6 +430,10 @@ int main(int argc, char **argv)
         running = false;
       }
     }
+    ctx.m_context->ClearRenderTargetView(ctx.m_backbuffer_render_target_view.Get(), clearColor);
+    ctx.m_context->ClearDepthStencilView(ctx.m_depth_stencil_view.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+    ctx.m_context->Draw(3, 0);
+    ctx.m_swapchain->Present(1, 0);
   }
   return 0;
 }
