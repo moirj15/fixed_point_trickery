@@ -1,12 +1,16 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <Windows.h>
+#include <array>
 #include <cassert>
 #include <d3d11_3.h>
 #include <d3d11shader.h>
 #include <d3dcompiler.h>
 #include <directxtk/BufferHelpers.h>
+#include <filesystem>
+#include <glm/vec3.hpp>
 #include <iostream>
+#include <span>
 #include <wrl/client.h>
 
 using u64 = uint64_t;
@@ -227,15 +231,93 @@ std::string ReadFile(std::string_view path)
   return data;
 }
 
-RenderPipeline CreatePipeline(std::string_view vertexPath, std::string_view pixelPath)
+RenderPipeline
+CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11Device3 *device)
 {
+
+  RenderPipeline pipeline{};
+
   ComPtr<ID3D10Blob> vertexByteCode;
   ComPtr<ID3D10Blob> pixelByteCode;
 
-  D3DReadFileToBlob(reinterpret_cast<LPCWSTR>(vertexPath.data()), vertexByteCode.GetAddressOf());
-  D3DReadFileToBlob(reinterpret_cast<LPCWSTR>(pixelPath.data()), pixelByteCode.GetAddressOf());
+  auto modifiedVertexPath =
+    std::filesystem::canonical(std::filesystem::current_path() / vertexPath);
+  auto modifiedPixelPath = std::filesystem::canonical(std::filesystem::current_path() / pixelPath);
 
-  return {};
+  DX::ThrowIfFailed(D3DReadFileToBlob(
+    reinterpret_cast<LPCWSTR>(modifiedVertexPath.c_str()),
+    vertexByteCode.GetAddressOf()));
+  DX::ThrowIfFailed(D3DReadFileToBlob(
+    reinterpret_cast<LPCWSTR>(modifiedPixelPath.c_str()),
+    pixelByteCode.GetAddressOf()));
+
+  device->CreateVertexShader(
+    vertexByteCode->GetBufferPointer(),
+    vertexByteCode->GetBufferSize(),
+    nullptr,
+    pipeline.vertexShader.GetAddressOf());
+
+  device->CreatePixelShader(
+    pixelByteCode->GetBufferPointer(),
+    pixelByteCode->GetBufferSize(),
+    nullptr,
+    pipeline.pixelShader.GetAddressOf());
+
+  CD3D11_RASTERIZER_DESC rasterizerDesc{CD3D11_DEFAULT{}};
+  rasterizerDesc.FrontCounterClockwise = true;
+
+  device->CreateRasterizerState(&rasterizerDesc, pipeline.rasterizerState.GetAddressOf());
+
+  return pipeline;
+}
+
+template<typename T>
+ComPtr<ID3D11Buffer>
+CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const T> data)
+{
+  D3D11_BUFFER_DESC desc = {
+    .ByteWidth           = size,
+    .Usage               = D3D11_USAGE_DYNAMIC,
+    .BindFlags           = D3D11_BIND_SHADER_RESOURCE,
+    .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
+    .MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
+    .StructureByteStride = stride,
+  };
+
+  ID3D11Buffer *vertexBuffer{};
+  if (data.empty()) {
+    device->CreateBuffer(&desc, nullptr, &vertexBuffer);
+  } else {
+    D3D11_SUBRESOURCE_DATA d{};
+    d.pSysMem = data.data();
+    device->CreateBuffer(&desc, &d, &vertexBuffer);
+  }
+
+  return vertexBuffer;
+}
+
+template<typename T>
+ComPtr<ID3D11Buffer> CreateIndexBuffer(ID3D11Device3 *device, u32 size, std::span<const T> data)
+{
+  D3D11_BUFFER_DESC desc = {
+    .ByteWidth           = size,
+    .Usage               = D3D11_USAGE_DYNAMIC,
+    .BindFlags           = D3D11_BIND_INDEX_BUFFER,
+    .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
+    .MiscFlags           = {},
+    .StructureByteStride = {},
+  };
+
+  ID3D11Buffer *indexBuffer{};
+  if (data.empty()) {
+    device->CreateBuffer(&desc, nullptr, &indexBuffer);
+  } else {
+    D3D11_SUBRESOURCE_DATA d{};
+    d.pSysMem = data.data();
+    device->CreateBuffer(&desc, &d, &indexBuffer);
+  }
+
+  return indexBuffer;
 }
 
 int main(int argc, char **argv)
@@ -258,11 +340,41 @@ int main(int argc, char **argv)
 
   RenderContext ctx = InitContext(hwnd, WIDTH, HEIGHT);
 
-  // RenderPipeline colordNormalsPipeline = CreatePipeline("shaders/colored_normals.")
+  RenderPipeline colordNormalsPipeline = CreatePipeline(
+    "shaders/colored_normals.slang.vert.dxbc",
+    "shaders/colored_normals.slang.pix.dxbc",
+    ctx.m_device.Get());
+
+  std::array tri = {
+    glm::vec3{0, 1, 0},
+    glm::vec3{-1, -1, 0},
+    glm::vec3{1, -1, 0},
+  };
+
+  std::array<u32, 3> indices = {0, 1, 2};
+
+  ComPtr<ID3D11Buffer> vb =
+    CreateVertexBuffer<glm::vec3>(ctx.m_device.Get(), sizeof(tri), sizeof(glm::vec3), tri);
+
+  D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
+  viewDesc.Format              = DXGI_FORMAT_UNKNOWN;
+  viewDesc.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
+  viewDesc.Buffer.ElementWidth = tri.size();
+
+  ComPtr<ID3D11ShaderResourceView> vbView;
+
+  DX::ThrowIfFailed(
+    ctx.m_device->CreateShaderResourceView(vb.Get(), &viewDesc, vbView.GetAddressOf()));
+
+  ComPtr<ID3D11Buffer> ib = CreateIndexBuffer<u32>(ctx.m_device.Get(), sizeof(indices), indices);
 
   f32 clearColor[] = {0.5, 0.5, 0.5, 1.0};
   ctx.m_context->ClearRenderTargetView(ctx.m_backbuffer_render_target_view.Get(), clearColor);
   ctx.m_swapchain->Present(1, 0);
+  ctx.m_context->VSSetShader(colordNormalsPipeline.vertexShader.Get(), nullptr, 0);
+  ctx.m_context->PSSetShader(colordNormalsPipeline.pixelShader.Get(), nullptr, 0);
+  std::array resourceViews = {vbView.Get()};
+  ctx.m_context->VSSetShaderResources(0, 1, resourceViews.data());
 
   SDL_Event e;
   bool      running = true;

@@ -28,7 +28,7 @@ set(PIXEL_SOURCES
 foreach (SHADER ${VERTEX_SOURCES})
   message(STATUS "BUILDING SHADER")
   get_filename_component(FILE_NAME ${SHADER} NAME)
-  set(DXBC "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.vert.dxbc")
+  set(DXBC "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.vert.dxbc")
   set(ARGS ${SHADER} -profile sm_5_0 -target dxbc -entry "VSMain" -o ${DXBC})
   message(STATUS ${SHADER})
   message(STATUS COMMAND "${SLANGC} ${ARGS}")
@@ -36,13 +36,14 @@ foreach (SHADER ${VERTEX_SOURCES})
     OUTPUT ${DXBC}
     COMMAND ${SLANGC} ${ARGS}
     DEPENDS ${SHADER} ${PROJECT_SOURCE_DIR}/shaders)
+
   list(APPEND DXBC_BINARY_FILES ${DXBC})
 endforeach (SHADER)
 
 foreach (SHADER ${PIXEL_SOURCES})
   message(STATUS "BUILDING SHADER")
   get_filename_component(FILE_NAME ${SHADER} NAME)
-  set(DXBC "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.pix.dxbc")
+  set(DXBC "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.pix.dxbc")
   set(ARGS ${SHADER} -profile sm_5_0 -target dxbc -entry "PSMain" -o ${DXBC})
   message(STATUS ${SHADER})
   message(STATUS COMMAND "${SLANGC} ${ARGS}")
