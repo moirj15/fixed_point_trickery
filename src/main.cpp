@@ -11,9 +11,14 @@
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
 #include <iostream>
+#include <print>
 #include <span>
 #include <wrl/client.h>
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 
+#include <tiny_gltf.h>
 using u64 = uint64_t;
 using u32 = uint32_t;
 using u16 = uint16_t;
@@ -233,24 +238,53 @@ std::string ReadFile(std::string_view path)
 }
 
 RenderPipeline
-CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11Device3 *device)
+CreateRenderPipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11Device3 *device)
 {
 
-  RenderPipeline pipeline{};
+  const std::string SHADER_PATH = "../../shaders";
+  RenderPipeline    pipeline{};
 
   ComPtr<ID3D10Blob> vertexByteCode;
+  ComPtr<ID3D10Blob> vertexError;
   ComPtr<ID3D10Blob> pixelByteCode;
+  ComPtr<ID3D10Blob> pixelError;
 
   auto modifiedVertexPath =
-    std::filesystem::canonical(std::filesystem::current_path() / vertexPath);
-  auto modifiedPixelPath = std::filesystem::canonical(std::filesystem::current_path() / pixelPath);
+    std::filesystem::canonical(std::filesystem::current_path() / SHADER_PATH / vertexPath);
+  auto modifiedPixelPath =
+    std::filesystem::canonical(std::filesystem::current_path() / SHADER_PATH / pixelPath);
 
-  DX::ThrowIfFailed(D3DReadFileToBlob(
-    reinterpret_cast<LPCWSTR>(modifiedVertexPath.c_str()),
-    vertexByteCode.GetAddressOf()));
-  DX::ThrowIfFailed(D3DReadFileToBlob(
-    reinterpret_cast<LPCWSTR>(modifiedPixelPath.c_str()),
-    pixelByteCode.GetAddressOf()));
+  HRESULT vertexResult = D3DCompileFromFile(
+    (LPCWSTR)modifiedVertexPath.c_str(),
+    nullptr,
+    D3D_COMPILE_STANDARD_FILE_INCLUDE,
+    "VSMain",
+    "vs_5_0",
+    D3DCOMPILE_DEBUG,
+    0,
+    vertexByteCode.GetAddressOf(),
+    vertexError.GetAddressOf());
+
+  if (FAILED(vertexResult)) {
+    std::println("Vertex Compile Error: {}", vertexError->GetBufferPointer());
+    throw std::runtime_error("Vertex Compile Error");
+  }
+
+  HRESULT pixelResult = D3DCompileFromFile(
+    (LPCWSTR)modifiedPixelPath.c_str(),
+    nullptr,
+    D3D_COMPILE_STANDARD_FILE_INCLUDE,
+    "PSMain",
+    "ps_5_0",
+    D3DCOMPILE_DEBUG,
+    0,
+    pixelByteCode.GetAddressOf(),
+    pixelError.GetAddressOf());
+
+  if (FAILED(pixelResult)) {
+    std::println("Pixel Compile Error: {}", (const char *)pixelError->GetBufferPointer());
+    throw std::runtime_error("Pixel Compile Error");
+  }
 
   device->CreateVertexShader(
     vertexByteCode->GetBufferPointer(),
@@ -273,16 +307,15 @@ CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11De
 }
 
 template<typename T>
-ComPtr<ID3D11Buffer>
-CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const T> data)
+ComPtr<ID3D11Buffer> CreateVertexBufferWithData(ID3D11Device3 *device, std::span<const T> data)
 {
   D3D11_BUFFER_DESC desc = {
-    .ByteWidth           = size,
+    .ByteWidth           = static_cast<UINT>(data.size_bytes()),
     .Usage               = D3D11_USAGE_DYNAMIC,
     .BindFlags           = D3D11_BIND_SHADER_RESOURCE,
     .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
     .MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
-    .StructureByteStride = stride,
+    .StructureByteStride = sizeof(T),
   };
 
   ID3D11Buffer *vertexBuffer{};
@@ -298,10 +331,10 @@ CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const 
 }
 
 template<typename T>
-ComPtr<ID3D11Buffer> CreateIndexBuffer(ID3D11Device3 *device, u32 size, std::span<const T> data)
+ComPtr<ID3D11Buffer> CreateIndexBufferWithData(ID3D11Device3 *device, std::span<const T> data)
 {
   D3D11_BUFFER_DESC desc = {
-    .ByteWidth           = size,
+    .ByteWidth           = static_cast<UINT>(data.size_bytes()),
     .Usage               = D3D11_USAGE_DYNAMIC,
     .BindFlags           = D3D11_BIND_INDEX_BUFFER,
     .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
@@ -345,6 +378,22 @@ ComPtr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device3 *device, const T *data)
   return constantBuffer;
 }
 
+void LoadModel()
+{
+  tinygltf::TinyGLTF loader;
+  tinygltf::Model    model;
+  std::string        err;
+  std::string        warn;
+  const std::string  MODEL_PATH = "../../models";
+  auto               canonicalSuzanne =
+    std::filesystem::canonical(std::filesystem::current_path() / MODEL_PATH / "suzanne.glb");
+  loader.LoadBinaryFromFile(&model, &err, &warn, canonicalSuzanne.string());
+  if (!err.empty()) {
+    std::println("Failed to load model: {}", err);
+    throw std::runtime_error("Model loading error");
+  }
+}
+
 int main(int argc, char **argv)
 {
   assert(SDL_Init(SDL_INIT_VIDEO) == 0);
@@ -365,24 +414,24 @@ int main(int argc, char **argv)
 
   RenderContext ctx = InitContext(hwnd, WIDTH, HEIGHT);
 
-  RenderPipeline colordNormalsPipeline = CreatePipeline(
-    "shaders/colored_normals.slang.vert.dxbc",
-    "shaders/colored_normals.slang.pix.dxbc",
-    ctx.m_device.Get());
+  RenderPipeline colordNormalsPipeline =
+    CreateRenderPipeline("colored_normals.hlsl", "colored_normals.hlsl", ctx.m_device.Get());
 
-  std::array tri = {
-    glm::vec3{0, 1, 0},
-    glm::normalize(glm::vec3{0, 1, 0}),
-    glm::vec3{-1, -1, 0},
-    glm::normalize(glm::vec3{-1, -1, 0}),
-    glm::vec3{1, -1, 0},
-    glm::normalize(glm::vec3{1, -1, 0}),
+  struct Vertex
+  {
+    glm::vec3 pos;
+    glm::vec3 normal;
+  };
+
+  std::array<Vertex, 3> tri = {
+    Vertex{glm::vec3{0, 1, 0}, glm::normalize(glm::vec3{0, 1, 0})},
+    Vertex{glm::vec3{-1, -1, 0}, glm::normalize(glm::vec3{-1, -1, 0})},
+    Vertex{glm::vec3{1, -1, 0}, glm::normalize(glm::vec3{1, -1, 0})},
   };
 
   std::array<u32, 3> indices = {0, 1, 2};
 
-  ComPtr<ID3D11Buffer> vb =
-    CreateVertexBuffer<glm::vec3>(ctx.m_device.Get(), sizeof(tri), sizeof(glm::vec3), tri);
+  ComPtr<ID3D11Buffer> vb = CreateVertexBufferWithData<Vertex>(ctx.m_device.Get(), tri);
 
   D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
   viewDesc.Format              = DXGI_FORMAT_UNKNOWN;
@@ -394,7 +443,7 @@ int main(int argc, char **argv)
   DX::ThrowIfFailed(
     ctx.m_device->CreateShaderResourceView(vb.Get(), &viewDesc, vbView.GetAddressOf()));
 
-  ComPtr<ID3D11Buffer> ib = CreateIndexBuffer<u32>(ctx.m_device.Get(), sizeof(indices), indices);
+  ComPtr<ID3D11Buffer> ib = CreateIndexBufferWithData<u32>(ctx.m_device.Get(), indices);
 
   const glm::mat4      mvp = glm::mat4{1.0};
   ComPtr<ID3D11Buffer> cb  = CreateConstantBuffer<glm::mat4x4>(ctx.m_device.Get(), &mvp);
@@ -421,6 +470,8 @@ int main(int argc, char **argv)
   ctx.m_context->VSSetConstantBuffers(0, 1, cb.GetAddressOf());
   ctx.m_context->Draw(3, 0);
   ctx.m_swapchain->Present(1, 0);
+
+  LoadModel();
 
   SDL_Event e;
   bool      running = true;

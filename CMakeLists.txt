@@ -25,43 +25,54 @@ set(PIXEL_SOURCES
 )
 
 #TODO: get shaders compiling again
-foreach (SHADER ${VERTEX_SOURCES})
-  message(STATUS "BUILDING SHADER")
-  get_filename_component(FILE_NAME ${SHADER} NAME)
-  set(DXBC "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.vert.dxbc")
-  set(ARGS ${SHADER} -profile sm_5_0 -target dxbc -entry "VSMain" -o ${DXBC})
-  message(STATUS ${SHADER})
-  message(STATUS COMMAND "${SLANGC} ${ARGS}")
-  add_custom_command(
-    OUTPUT ${DXBC}
-    COMMAND ${SLANGC} ${ARGS}
-    DEPENDS ${SHADER} ${PROJECT_SOURCE_DIR}/shaders)
+#foreach (SHADER ${VERTEX_SOURCES})
+#  message(STATUS "BUILDING SHADER")
+#  get_filename_component(FILE_NAME ${SHADER} NAME)
+#  set(DXBC "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.vert.dxbc")
+#  set(ARGS ${SHADER} -profile sm_5_0 -target dxbc -entry "VSMain" -o ${DXBC})
+#  message(STATUS ${SHADER})
+#  message(STATUS COMMAND "${SLANGC} ${ARGS}")
+#  add_custom_command(
+#    OUTPUT ${DXBC}
+#    COMMAND ${SLANGC} ${ARGS}
+#    DEPENDS ${SHADER} ${PROJECT_SOURCE_DIR}/shaders)
+#
+#  list(APPEND DXBC_BINARY_FILES ${DXBC})
+#endforeach (SHADER)
+#
+#foreach (SHADER ${PIXEL_SOURCES})
+#  message(STATUS "BUILDING SHADER")
+#  get_filename_component(FILE_NAME ${SHADER} NAME)
+#  set(DXBC "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.pix.dxbc")
+#  set(ARGS ${SHADER} -profile sm_5_0 -target dxbc -entry "PSMain" -o ${DXBC})
+#  message(STATUS ${SHADER})
+#  message(STATUS COMMAND "${SLANGC} ${ARGS}")
+#  add_custom_command(
+#    OUTPUT ${DXBC}
+#    COMMAND ${SLANGC} ${ARGS}
+#    DEPENDS ${SHADER} ${PROJECT_SOURCE_DIR}/shaders)
+#  list(APPEND DXBC_BINARY_FILES ${DXBC})
+#endforeach (SHADER)
+#
+#
+#add_custom_target(
+#  Shaders ALL
+#  DEPENDS ${DXBC_BINARY_FILES}
+#)
 
-  list(APPEND DXBC_BINARY_FILES ${DXBC})
-endforeach (SHADER)
-
-foreach (SHADER ${PIXEL_SOURCES})
-  message(STATUS "BUILDING SHADER")
-  get_filename_component(FILE_NAME ${SHADER} NAME)
-  set(DXBC "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.pix.dxbc")
-  set(ARGS ${SHADER} -profile sm_5_0 -target dxbc -entry "PSMain" -o ${DXBC})
-  message(STATUS ${SHADER})
-  message(STATUS COMMAND "${SLANGC} ${ARGS}")
-  add_custom_command(
-    OUTPUT ${DXBC}
-    COMMAND ${SLANGC} ${ARGS}
-    DEPENDS ${SHADER} ${PROJECT_SOURCE_DIR}/shaders)
-  list(APPEND DXBC_BINARY_FILES ${DXBC})
-endforeach (SHADER)
-
-add_custom_target(
-  Shaders ALL
-  DEPENDS ${DXBC_BINARY_FILES}
-)
 
 add_executable(fixed_point_trickery
   src/main.cpp
 )
+
+include(cmake/CompilerWarnings.cmake)
+myproject_set_project_warnings(
+    fixed_point_trickery 
+    "TRUE"
+    ""
+    ""
+    ""
+    "")
 
 target_compile_features(fixed_point_trickery PRIVATE cxx_std_23)
 target_link_libraries(fixed_point_trickery PRIVATE

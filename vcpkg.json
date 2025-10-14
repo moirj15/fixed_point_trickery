@@ -13,7 +13,8 @@
     "tinyobjloader",
     "assimp",
     "catch2",
-    "directxtk"
+    "directxtk",
+    "tinygltf"
   ],
   "version": "0.0",
   "name": "fixed-point-trickery"
