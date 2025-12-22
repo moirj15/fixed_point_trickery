@@ -1,8 +1,11 @@
 {
+  "name": "fixed-point-trickery",
+  "version": "0.0",
+  "builtin-baseline": "50c0cb48a0cf2f6fc5c7b2c0d2bafbe26d0a7ca2",
   "dependencies": [
-    {
-      "name": "sdl2"
-    },
+    "assimp",
+    "catch2",
+    "directxtk",
     "glm",
     {
       "name": "imgui",
@@ -10,12 +13,8 @@
         "dx11-binding"
       ]
     },
+    "sdl2",
     "tinyobjloader",
-    "assimp",
-    "catch2",
-    "directxtk",
-    "tinygltf"
-  ],
-  "version": "0.0",
-  "name": "fixed-point-trickery"
+    "plf-colony"
+  ]
 }

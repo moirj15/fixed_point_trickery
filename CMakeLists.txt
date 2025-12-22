@@ -4,6 +4,8 @@ project(fixed_point_trickery LANGUAGES CXX)
 
 message("prefix ${CMAKE_PREFIX_PATH}")
 include_directories(${CMAKE_SOURCE_DIR}/src)
+message("MEEEEE")
+message(${CMAKE_TOOLCHAIN_FILE})
 
 find_package(SDL2 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -11,6 +13,8 @@ find_package(imgui CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
 find_package(directxtk CONFIG REQUIRED)
+find_path(PLF_COLONY_INCLUDE_DIRS "plf_colony.h")
+
 
 find_program(SLANGC slangc HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
 
@@ -63,6 +67,13 @@ set(PIXEL_SOURCES
 
 add_executable(fixed_point_trickery
   src/main.cpp
+  src/utils.hpp
+  src/utils.cpp
+  src/dx.hpp
+  src/dx.cpp
+  src/BufferSystem.hpp
+  src/BufferSystem.cpp
+  src/Handle.hpp
 )
 
 include(cmake/CompilerWarnings.cmake)

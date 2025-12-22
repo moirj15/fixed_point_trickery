@@ -1,0 +1,160 @@
+#include "dx.hpp"
+namespace kronk
+{
+
+RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_height)
+{
+  RenderContext context{};
+  u32           createDeviceFlags = 0;
+#if defined(DEBUG) || defined(_DEBUG)
+  createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+  D3D_FEATURE_LEVEL desiredLevel[] = {D3D_FEATURE_LEVEL_11_1};
+  D3D_FEATURE_LEVEL featureLevel;
+  // TODO: get latest dx11
+  ID3D11Device        *baseDevice;
+  ID3D11DeviceContext *baseContext;
+  Check(D3D11CreateDevice(
+    nullptr,
+    D3D_DRIVER_TYPE_HARDWARE,
+    nullptr,
+    createDeviceFlags,
+    desiredLevel,
+    1,
+    D3D11_SDK_VERSION,
+    &baseDevice,
+    &featureLevel,
+    &baseContext));
+  assert(featureLevel == D3D_FEATURE_LEVEL_11_1);
+
+  baseDevice->QueryInterface(__uuidof(ID3D11Device3), &context.m_device);
+  baseContext->QueryInterface(__uuidof(ID3D11DeviceContext3), &context.m_context);
+
+  // TODO: temporary rasterizer state, should create a manager for this, maybe create a handle type
+  // for this?
+  // TODO: maybe an internal handle just for tracking this internaly?
+  D3D11_RASTERIZER_DESC rasterizerDesc = {
+    .FillMode              = D3D11_FILL_SOLID,
+    .CullMode              = D3D11_CULL_NONE,
+    .FrontCounterClockwise = true,
+  };
+
+  context.m_device->CreateRasterizerState(&rasterizerDesc, &context.m_rasterizer_state);
+
+  DXGI_SWAP_CHAIN_DESC swapChainDesc = {
+    .BufferDesc =
+      {
+        .Width  = window_width,
+        .Height = window_height,
+        .RefreshRate =
+          {
+            .Numerator   = 60,
+            .Denominator = 1,
+          },
+        .Format           = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
+        .Scaling          = DXGI_MODE_SCALING_UNSPECIFIED,
+      },
+    // Multi sampling would be initialized here
+    .SampleDesc =
+      {
+        .Count   = 1,
+        .Quality = 0,
+      },
+    .BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+    .BufferCount  = 1,
+    .OutputWindow = window_handle,
+    .Windowed     = true,
+    .SwapEffect   = DXGI_SWAP_EFFECT_DISCARD,
+    .Flags        = 0,
+  };
+  // clang-format on
+
+  Microsoft::WRL::ComPtr<IDXGIDevice> dxgiDevice;
+  dx::ThrowIfFailed(context.m_device->QueryInterface(__uuidof(IDXGIDevice), &dxgiDevice));
+  Microsoft::WRL::ComPtr<IDXGIAdapter> adapter;
+  dx::ThrowIfFailed(dxgiDevice->GetParent(__uuidof(IDXGIAdapter), &adapter));
+  Microsoft::WRL::ComPtr<IDXGIFactory> factory;
+  dx::ThrowIfFailed(adapter->GetParent(__uuidof(IDXGIFactory), &factory));
+
+  dx::ThrowIfFailed(
+    factory->CreateSwapChain(context.m_device.Get(), &swapChainDesc, &context.m_swapchain));
+
+  context.m_swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), &context.m_backbuffer);
+  context.m_device->CreateRenderTargetView(
+    context.m_backbuffer.Get(),
+    0,
+    &context.m_backbuffer_render_target_view);
+
+  D3D11_TEXTURE2D_DESC depthStencilDesc = {
+    .Width     = window_width,
+    .Height    = window_height,
+    .MipLevels = 1,
+    .ArraySize = 1,
+    .Format    = DXGI_FORMAT_D24_UNORM_S8_UINT,
+    // Multi sampling here
+    .SampleDesc =
+      {
+        .Count   = 1,
+        .Quality = 0,
+      },
+    .Usage          = D3D11_USAGE_DEFAULT,
+    .BindFlags      = D3D11_BIND_DEPTH_STENCIL,
+    .CPUAccessFlags = 0,
+    .MiscFlags      = 0,
+  };
+
+  dx::ThrowIfFailed(
+    context.m_device->CreateTexture2D(&depthStencilDesc, 0, &context.m_depth_stencil_buffer));
+  dx::ThrowIfFailed(context.m_device->CreateDepthStencilView(
+    context.m_depth_stencil_buffer.Get(),
+    0,
+    &context.m_depth_stencil_view));
+  context.m_context->OMSetRenderTargets(
+    1,
+    context.m_backbuffer_render_target_view.GetAddressOf(),
+    context.m_depth_stencil_view.Get());
+
+  return context;
+}
+
+RenderPipeline
+CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11Device3 *device)
+{
+
+  RenderPipeline pipeline{};
+
+  ComPtr<ID3D10Blob> vertexByteCode;
+  ComPtr<ID3D10Blob> pixelByteCode;
+
+  auto modifiedVertexPath =
+    std::filesystem::canonical(std::filesystem::current_path() / vertexPath);
+  auto modifiedPixelPath = std::filesystem::canonical(std::filesystem::current_path() / pixelPath);
+
+  dx::ThrowIfFailed(D3DReadFileToBlob(
+    reinterpret_cast<LPCWSTR>(modifiedVertexPath.c_str()),
+    vertexByteCode.GetAddressOf()));
+  dx::ThrowIfFailed(D3DReadFileToBlob(
+    reinterpret_cast<LPCWSTR>(modifiedPixelPath.c_str()),
+    pixelByteCode.GetAddressOf()));
+
+  device->CreateVertexShader(
+    vertexByteCode->GetBufferPointer(),
+    vertexByteCode->GetBufferSize(),
+    nullptr,
+    pipeline.vertexShader.GetAddressOf());
+
+  device->CreatePixelShader(
+    pixelByteCode->GetBufferPointer(),
+    pixelByteCode->GetBufferSize(),
+    nullptr,
+    pipeline.pixelShader.GetAddressOf());
+
+  CD3D11_RASTERIZER_DESC rasterizerDesc{CD3D11_DEFAULT{}};
+  rasterizerDesc.FrontCounterClockwise = true;
+
+  device->CreateRasterizerState(&rasterizerDesc, pipeline.rasterizerState.GetAddressOf());
+
+  return pipeline;
+}
+} // namespace kronk
