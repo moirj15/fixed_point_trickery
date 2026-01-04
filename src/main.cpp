@@ -51,8 +51,10 @@ int main(int argc, char **argv)
 
   std::array<u32, 3> indices = {0, 1, 2};
 
-  ComPtr<ID3D11Buffer> vb =
+#if 0
+  kronk::BufferHandle vb =
     kronk::CreateVertexBuffer<glm::vec3>(ctx.m_device.Get(), sizeof(tri), sizeof(glm::vec3), tri);
+#endif
 
   D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
   viewDesc.Format              = DXGI_FORMAT_UNKNOWN;
@@ -61,8 +63,10 @@ int main(int argc, char **argv)
 
   ComPtr<ID3D11ShaderResourceView> vbView;
 
+#if 0
   kronk::dx::ThrowIfFailed(
     ctx.m_device->CreateShaderResourceView(vb.Get(), &viewDesc, vbView.GetAddressOf()));
+#endif
 
   ComPtr<ID3D11Buffer> ib =
     kronk::CreateIndexBuffer<u32>(ctx.m_device.Get(), sizeof(indices), indices);
@@ -93,7 +97,7 @@ int main(int argc, char **argv)
   ctx.m_context->Draw(3, 0);
   ctx.m_swapchain->Present(1, 0);
 
-  LoadModel();
+  // LoadModel();
 
   SDL_Event e;
   bool      running = true;

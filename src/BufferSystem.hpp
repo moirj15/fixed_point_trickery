@@ -4,8 +4,12 @@
 #include "dx.hpp"
 
 #include <d3d11_3.h>
+#include <functional>
 #include <span>
 #include <vector>
+#if defined(max)
+#undef max
+#endif
 
 namespace kronk
 {
@@ -13,6 +17,8 @@ namespace kronk
 class BufferSystem;
 
 MAKE_HANDLE(Buffer);
+
+using BufferUpdateCallback = std::function<void(std::span<const std::byte>)>;
 
 class Buffer
 {
@@ -34,7 +40,9 @@ public:
   Buffer() = default;
   u32 GetSize() const;
 
-  void Update();
+  void Update(BufferUpdateCallback callback);
+
+  void Destroy();
 };
 
 template<typename T>
@@ -42,18 +50,27 @@ concept IsIndex = std::same_as<u16, T> || std::same_as<u32, T>;
 
 class BufferSystem
 {
-  ID3D11Device3 *mDevice;
+  static constexpr size_t MAX_SLOTS = std::numeric_limits<u16>::max();
+
+  ID3D11Device3        *mDevice;
+  ID3D11DeviceContext3 *mContext;
 
   std::vector<ComPtr<ID3D11Buffer>> mBuffers;
 
   std::vector<u32> mSizes;
   std::vector<u32> mStrides;
   std::vector<u32> mGen;
-  std::vector<u32> mFreeList;
-  BufferHandle     mNext;
+  std::vector<u32> mFreeList{};
+  BufferHandle     mNext{0, 0};
 
 public:
-  explicit BufferSystem(ID3D11Device3 *device) : mDevice{device}
+  explicit BufferSystem(ID3D11Device3 *device, ID3D11DeviceContext3 *context) :
+      mDevice{device},
+      mContext{context},
+      mBuffers(MAX_SLOTS),
+      mSizes(MAX_SLOTS),
+      mStrides(MAX_SLOTS),
+      mGen(MAX_SLOTS)
   {
   }
 
@@ -101,11 +118,12 @@ public:
         .MiscFlags           = {},
         .StructureByteStride = {},
       },
-      reinterpret_cast<void *>(data.data()))
+      reinterpret_cast<void *>(data.data()));
   }
 
   u32  GetBufferSize(BufferHandle handle) const;
-  void Update(BufferHandle handle);
+  void UpdateBuffer(BufferHandle handle, BufferUpdateCallback callback);
+  void DestroyBuffer(BufferHandle handle);
 
 private:
   Buffer CreateBuffer(const D3D11_BUFFER_DESC &desc, void *data);
