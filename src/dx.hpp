@@ -12,6 +12,7 @@
 #include <span>
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
+struct SDL_Window;
 
 namespace kronk::dx
 {
@@ -27,7 +28,8 @@ class com_exception : public std::exception
 {
 public:
   com_exception(HRESULT hr) :
-      mResult{hr}, mMessage{std::format("Failure with HRESULT of {:#8X}", mResult)}
+      mResult{hr},
+      mMessage{std::format("Failure with HRESULT of {:#8X}", mResult)}
   {
   }
 
@@ -61,6 +63,17 @@ constexpr void Check(HRESULT result)
   }
 }
 
+struct Window
+{
+  SDL_Window *win{};
+  u32         width{};
+  u32         height{};
+  HWND        hwnd{};
+};
+
+Window CreateWin(u32 width, u32 height, const char *title);
+void   DestroyWin(Window &win);
+
 struct RenderContext
 {
   ComPtr<ID3D11Device3>         m_device;
@@ -83,7 +96,7 @@ struct RenderContext
   }
 };
 
-RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_height);
+RenderContext InitContext(const Window &window);
 
 struct RenderPipeline
 {

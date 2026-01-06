@@ -20,7 +20,7 @@ MAKE_HANDLE(Buffer);
 
 using BufferUpdateCallback = std::function<void(std::span<const std::byte>)>;
 
-class Buffer
+class Buffer final
 {
   static inline BufferSystem *sBufferSystem;
   friend class BufferSystem;
@@ -38,7 +38,8 @@ class Buffer
 
 public:
   Buffer() = default;
-  u32 GetSize() const;
+  u32                       GetSize() const;
+  ID3D11ShaderResourceView *GetView() const;
 
   void Update(BufferUpdateCallback callback);
 
@@ -55,7 +56,8 @@ class BufferSystem
   ID3D11Device3        *mDevice;
   ID3D11DeviceContext3 *mContext;
 
-  std::vector<ComPtr<ID3D11Buffer>> mBuffers;
+  std::vector<ComPtr<ID3D11Buffer>>             mBuffers;
+  std::vector<ComPtr<ID3D11ShaderResourceView>> mViews;
 
   std::vector<u32> mSizes;
   std::vector<u32> mStrides;
@@ -68,6 +70,7 @@ public:
       mDevice{device},
       mContext{context},
       mBuffers(MAX_SLOTS),
+      mViews(MAX_SLOTS),
       mSizes(MAX_SLOTS),
       mStrides(MAX_SLOTS),
       mGen(MAX_SLOTS)
@@ -86,7 +89,7 @@ public:
         .MiscFlags           = {},
         .StructureByteStride = {},
       },
-      reinterpret_cast<void *>(&data));
+      reinterpret_cast<const void *>(&data));
   }
 
   template<typename T>
@@ -102,7 +105,7 @@ public:
         .MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
         .StructureByteStride = stride,
       },
-      reinterpret_cast<void *>(data.data()));
+      reinterpret_cast<const void *>(data.data()));
   }
 
   template<IsIndex T>
@@ -118,15 +121,16 @@ public:
         .MiscFlags           = {},
         .StructureByteStride = {},
       },
-      reinterpret_cast<void *>(data.data()));
+      reinterpret_cast<const void *>(data.data()));
   }
 
-  u32  GetBufferSize(BufferHandle handle) const;
-  void UpdateBuffer(BufferHandle handle, BufferUpdateCallback callback);
-  void DestroyBuffer(BufferHandle handle);
+  u32                       GetBufferSize(BufferHandle handle) const;
+  ID3D11ShaderResourceView *GetView(BufferHandle handle) const;
+  void                      UpdateBuffer(BufferHandle handle, BufferUpdateCallback callback);
+  void                      DestroyBuffer(BufferHandle handle);
 
 private:
-  Buffer CreateBuffer(const D3D11_BUFFER_DESC &desc, void *data);
+  Buffer CreateBuffer(const D3D11_BUFFER_DESC &desc, const void *data);
 };
 
 } // namespace kronk

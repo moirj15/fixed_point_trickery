@@ -9,6 +9,12 @@ u32 BufferSystem::GetBufferSize(BufferHandle handle) const
   return mSizes[handle.GetValue()];
 }
 
+ID3D11ShaderResourceView *BufferSystem::GetView(BufferHandle handle) const
+{
+  assert(mGen[handle.GetValue()] == handle.GetGen());
+  return mViews[handle.GetValue()].Get();
+}
+
 void BufferSystem::UpdateBuffer(BufferHandle handle, BufferUpdateCallback callback)
 {
   assert(mGen[handle.GetValue()] == handle.GetGen());
@@ -32,7 +38,7 @@ void BufferSystem::DestroyBuffer(BufferHandle handle)
   mFreeList.push_back(handle.GetValue());
 }
 
-Buffer BufferSystem::CreateBuffer(const D3D11_BUFFER_DESC &desc, void *data)
+Buffer BufferSystem::CreateBuffer(const D3D11_BUFFER_DESC &desc, const void *data)
 {
   ID3D11Buffer *buffer{};
   if (data == nullptr)
@@ -59,6 +65,11 @@ Buffer BufferSystem::CreateBuffer(const D3D11_BUFFER_DESC &desc, void *data)
 u32 Buffer::GetSize() const
 {
   return sBufferSystem->GetBufferSize(mHandle);
+}
+
+ID3D11ShaderResourceView *Buffer::GetView() const
+{
+  return sBufferSystem->GetView(mHandle);
 }
 
 void Buffer::Update(BufferUpdateCallback callback)

@@ -14,27 +14,13 @@ constexpr u32 HEIGHT = 1080;
 
 int main(int argc, char **argv)
 {
-  assert(SDL_Init(SDL_INIT_VIDEO) == 0);
-  SDL_Window *window = SDL_CreateWindow(
-    "D3D Viewer",
-    SDL_WINDOWPOS_UNDEFINED,
-    SDL_WINDOWPOS_UNDEFINED,
-    WIDTH,
-    HEIGHT,
-    SDL_WINDOW_SHOWN);
+  const kronk::Window window = kronk::CreateWin(WIDTH, HEIGHT, "win");
 
-  assert(window != nullptr);
-
-  SDL_SysWMinfo win_info;
-  SDL_VERSION(&win_info.version);
-  SDL_GetWindowWMInfo(window, &win_info);
-  HWND hwnd = win_info.info.win.window;
-
-  kronk::RenderContext ctx = kronk::InitContext(hwnd, WIDTH, HEIGHT);
+  kronk::RenderContext ctx = kronk::InitContext(window);
 
   kronk::RenderPipeline colordNormalsPipeline = kronk::CreatePipeline(
-    "shaders/colored_normals.slang.vert.dxbc",
-    "shaders/colored_normals.slang.pix.dxbc",
+    "shaders/colored_normals.hlsl",
+    "shaders/colored_normals.hlsl",
     ctx.m_device.Get());
 
   struct Vertex
@@ -79,8 +65,8 @@ int main(int argc, char **argv)
   D3D11_VIEWPORT viewport = {
     .TopLeftX = 0.0f,
     .TopLeftY = 0.0f,
-    .Width    = static_cast<f32>(WIDTH),
-    .Height   = static_cast<f32>(HEIGHT),
+    .Width    = static_cast<f32>(window.width),
+    .Height   = static_cast<f32>(window.height),
     .MinDepth = 0.0,
     .MaxDepth = 1.0,
   };

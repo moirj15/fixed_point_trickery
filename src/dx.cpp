@@ -1,8 +1,43 @@
 #include "dx.hpp"
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 namespace kronk
 {
 
-RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_height)
+Window CreateWin(u32 width, u32 height, const char *title)
+{
+  assert(SDL_Init(SDL_INIT_VIDEO) == 0);
+  SDL_Window *window = SDL_CreateWindow(
+    "D3D Viewer",
+    SDL_WINDOWPOS_UNDEFINED,
+    SDL_WINDOWPOS_UNDEFINED,
+    width,
+    height,
+    SDL_WINDOW_SHOWN);
+
+  assert(window != nullptr);
+
+  SDL_SysWMinfo win_info;
+  SDL_VERSION(&win_info.version);
+  SDL_GetWindowWMInfo(window, &win_info);
+  HWND hwnd = win_info.info.win.window;
+
+  return {
+    .win    = window,
+    .width  = width,
+    .height = height,
+    .hwnd   = hwnd,
+  };
+}
+
+void DestroyWin(Window &win)
+{
+  SDL_DestroyWindow(win.win);
+  win = {};
+}
+
+RenderContext InitContext(const Window &window)
 {
   RenderContext context{};
   u32           createDeviceFlags = 0;
@@ -44,8 +79,8 @@ RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_heigh
   DXGI_SWAP_CHAIN_DESC swapChainDesc = {
     .BufferDesc =
       {
-        .Width  = window_width,
-        .Height = window_height,
+        .Width  = window.width,
+        .Height = window.height,
         .RefreshRate =
           {
             .Numerator   = 60,
@@ -63,7 +98,7 @@ RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_heigh
       },
     .BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT,
     .BufferCount  = 1,
-    .OutputWindow = window_handle,
+    .OutputWindow = window.hwnd,
     .Windowed     = true,
     .SwapEffect   = DXGI_SWAP_EFFECT_DISCARD,
     .Flags        = 0,
@@ -87,8 +122,8 @@ RenderContext InitContext(HWND window_handle, u32 window_width, u32 window_heigh
     &context.m_backbuffer_render_target_view);
 
   D3D11_TEXTURE2D_DESC depthStencilDesc = {
-    .Width     = window_width,
-    .Height    = window_height,
+    .Width     = window.width,
+    .Height    = window.height,
     .MipLevels = 1,
     .ArraySize = 1,
     .Format    = DXGI_FORMAT_D24_UNORM_S8_UINT,
@@ -125,30 +160,57 @@ CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11De
   RenderPipeline pipeline{};
 
   ComPtr<ID3D10Blob> vertexByteCode;
+  ComPtr<ID3D10Blob> vertexError;
   ComPtr<ID3D10Blob> pixelByteCode;
+  ComPtr<ID3D10Blob> pixelError;
 
+  auto s = std::filesystem::current_path() / vertexPath;
   auto modifiedVertexPath =
     std::filesystem::canonical(std::filesystem::current_path() / vertexPath);
   auto modifiedPixelPath = std::filesystem::canonical(std::filesystem::current_path() / pixelPath);
 
-  dx::ThrowIfFailed(D3DReadFileToBlob(
-    reinterpret_cast<LPCWSTR>(modifiedVertexPath.c_str()),
-    vertexByteCode.GetAddressOf()));
-  dx::ThrowIfFailed(D3DReadFileToBlob(
-    reinterpret_cast<LPCWSTR>(modifiedPixelPath.c_str()),
-    pixelByteCode.GetAddressOf()));
+#if 0
+   dx::ThrowIfFailed(D3DReadFileToBlob(
+     reinterpret_cast<LPCWSTR>(modifiedVertexPath.c_str()),
+     vertexByteCode.GetAddressOf()));
+   dx::ThrowIfFailed(D3DReadFileToBlob(
+     reinterpret_cast<LPCWSTR>(modifiedPixelPath.c_str()),
+     pixelByteCode.GetAddressOf()));
+#endif
 
-  device->CreateVertexShader(
+  dx::ThrowIfFailed(D3DCompileFromFile(
+    reinterpret_cast<LPCWSTR>(modifiedVertexPath.c_str()),
+    nullptr,
+    nullptr,
+    "VSMain",
+    "vs_5_0",
+    0,
+    0,
+    vertexByteCode.GetAddressOf(),
+    vertexError.GetAddressOf()));
+
+  dx::ThrowIfFailed(D3DCompileFromFile(
+    reinterpret_cast<LPCWSTR>(modifiedPixelPath.c_str()),
+    nullptr,
+    nullptr,
+    "PSMain",
+    "ps_5_0",
+    0,
+    0,
+    pixelByteCode.GetAddressOf(),
+    pixelError.GetAddressOf()));
+
+  dx::ThrowIfFailed(device->CreateVertexShader(
     vertexByteCode->GetBufferPointer(),
     vertexByteCode->GetBufferSize(),
     nullptr,
-    pipeline.vertexShader.GetAddressOf());
+    pipeline.vertexShader.GetAddressOf()));
 
-  device->CreatePixelShader(
+  dx::ThrowIfFailed(device->CreatePixelShader(
     pixelByteCode->GetBufferPointer(),
     pixelByteCode->GetBufferSize(),
     nullptr,
-    pipeline.pixelShader.GetAddressOf());
+    pipeline.pixelShader.GetAddressOf()));
 
   CD3D11_RASTERIZER_DESC rasterizerDesc{CD3D11_DEFAULT{}};
   rasterizerDesc.FrontCounterClockwise = true;
