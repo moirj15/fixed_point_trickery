@@ -2,7 +2,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
-namespace kronk
+namespace dx
 {
 
 Window CreateWin(u32 width, u32 height, const char *title)
@@ -62,8 +62,8 @@ RenderContext InitContext(const Window &window)
     &baseContext));
   assert(featureLevel == D3D_FEATURE_LEVEL_11_1);
 
-  baseDevice->QueryInterface(__uuidof(ID3D11Device3), &context.m_device);
-  baseContext->QueryInterface(__uuidof(ID3D11DeviceContext3), &context.m_context);
+  baseDevice->QueryInterface(__uuidof(ID3D11Device3), &context.device);
+  baseContext->QueryInterface(__uuidof(ID3D11DeviceContext3), &context.context);
 
   // TODO: temporary rasterizer state, should create a manager for this, maybe create a handle type
   // for this?
@@ -74,7 +74,7 @@ RenderContext InitContext(const Window &window)
     .FrontCounterClockwise = true,
   };
 
-  context.m_device->CreateRasterizerState(&rasterizerDesc, &context.m_rasterizer_state);
+  context.device->CreateRasterizerState(&rasterizerDesc, &context.rasterizerState);
 
   DXGI_SWAP_CHAIN_DESC swapChainDesc = {
     .BufferDesc =
@@ -106,20 +106,17 @@ RenderContext InitContext(const Window &window)
   // clang-format on
 
   Microsoft::WRL::ComPtr<IDXGIDevice> dxgiDevice;
-  dx::ThrowIfFailed(context.m_device->QueryInterface(__uuidof(IDXGIDevice), &dxgiDevice));
+  dx::ThrowIfFailed(context.device->QueryInterface(__uuidof(IDXGIDevice), &dxgiDevice));
   Microsoft::WRL::ComPtr<IDXGIAdapter> adapter;
   dx::ThrowIfFailed(dxgiDevice->GetParent(__uuidof(IDXGIAdapter), &adapter));
   Microsoft::WRL::ComPtr<IDXGIFactory> factory;
   dx::ThrowIfFailed(adapter->GetParent(__uuidof(IDXGIFactory), &factory));
 
   dx::ThrowIfFailed(
-    factory->CreateSwapChain(context.m_device.Get(), &swapChainDesc, &context.m_swapchain));
+    factory->CreateSwapChain(context.device.Get(), &swapChainDesc, &context.swapchain));
 
-  context.m_swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), &context.m_backbuffer);
-  context.m_device->CreateRenderTargetView(
-    context.m_backbuffer.Get(),
-    0,
-    &context.m_backbuffer_render_target_view);
+  context.swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), &context.backbuffer);
+  context.device->CreateRenderTargetView(context.backbuffer.Get(), 0, &context.backbufferRTV);
 
   D3D11_TEXTURE2D_DESC depthStencilDesc = {
     .Width     = window.width,
@@ -140,15 +137,15 @@ RenderContext InitContext(const Window &window)
   };
 
   dx::ThrowIfFailed(
-    context.m_device->CreateTexture2D(&depthStencilDesc, 0, &context.m_depth_stencil_buffer));
-  dx::ThrowIfFailed(context.m_device->CreateDepthStencilView(
-    context.m_depth_stencil_buffer.Get(),
+    context.device->CreateTexture2D(&depthStencilDesc, 0, &context.depthStencilBuffer));
+  dx::ThrowIfFailed(context.device->CreateDepthStencilView(
+    context.depthStencilBuffer.Get(),
     0,
-    &context.m_depth_stencil_view));
-  context.m_context->OMSetRenderTargets(
+    &context.depthStencilView));
+  context.context->OMSetRenderTargets(
     1,
-    context.m_backbuffer_render_target_view.GetAddressOf(),
-    context.m_depth_stencil_view.Get());
+    context.backbufferRTV.GetAddressOf(),
+    context.depthStencilView.Get());
 
   return context;
 }
@@ -219,4 +216,4 @@ CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11De
 
   return pipeline;
 }
-} // namespace kronk
+} // namespace dx

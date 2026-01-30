@@ -1,8 +1,9 @@
 #include "utils.hpp"
+
 #include <cassert>
-namespace kronk::io
+namespace io
 {
-std::string ReadFile(const std::string& path)
+std::string ReadFile(const std::string &path)
 {
   FilePtr file{fopen(path.data(), "rb")};
   assert(file);
@@ -18,4 +19,4 @@ std::string ReadFile(const std::string& path)
 
   return data;
 }
-}
+} // namespace io

@@ -71,9 +71,13 @@ add_executable(fixed_point_trickery
   src/utils.cpp
   src/dx.hpp
   src/dx.cpp
-  src/BufferSystem.hpp
-  src/BufferSystem.cpp
-  src/Handle.hpp)
+  src/scene.hpp
+  src/shaderWatcher.hpp
+  src/shaderWatcher.cpp
+
+  src/methods/CpuDouble.hpp
+  src/methods/CpuDouble.cpp
+)
 
 include(cmake/CompilerWarnings.cmake)
 myproject_set_project_warnings(
@@ -110,16 +114,10 @@ target_link_libraries(fixed_point_trickery PRIVATE
 
 add_executable(tests
   src/tests/main.cpp
-  src/tests/BufferTests.cpp
-  src/tests/D3DFixture.hpp
-
   src/utils.hpp
   src/utils.cpp
   src/dx.hpp
   src/dx.cpp
-  src/BufferSystem.hpp
-  src/BufferSystem.cpp
-  src/Handle.hpp
 )
 include(CTest)
 include(Catch)

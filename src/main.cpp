@@ -1,4 +1,3 @@
-#include "Handle.hpp"
 #include "dx.hpp"
 #include "utils.hpp"
 
@@ -14,14 +13,14 @@ constexpr u32 HEIGHT = 1080;
 
 int main(int argc, char **argv)
 {
-  const kronk::Window window = kronk::CreateWin(WIDTH, HEIGHT, "win");
+  const dx::Window window = dx::CreateWin(WIDTH, HEIGHT, "win");
 
-  kronk::RenderContext ctx = kronk::InitContext(window);
+  dx::RenderContext ctx = dx::InitContext(window);
 
-  kronk::RenderPipeline colordNormalsPipeline = kronk::CreatePipeline(
+  dx::RenderPipeline colordNormalsPipeline = dx::CreatePipeline(
     "shaders/colored_normals.hlsl",
     "shaders/colored_normals.hlsl",
-    ctx.m_device.Get());
+    ctx.device.Get());
 
   struct Vertex
   {
@@ -37,31 +36,16 @@ int main(int argc, char **argv)
 
   std::array<u32, 3> indices = {0, 1, 2};
 
-#if 0
-  kronk::BufferHandle vb =
-    kronk::CreateVertexBuffer<glm::vec3>(ctx.m_device.Get(), sizeof(tri), sizeof(glm::vec3), tri);
-#endif
+  dx::VertexBuffer vb =
+    dx::CreateVertexBuffer<Vertex>(ctx.device.Get(), sizeof(tri), sizeof(glm::vec3), tri);
 
-  D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
-  viewDesc.Format              = DXGI_FORMAT_UNKNOWN;
-  viewDesc.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
-  viewDesc.Buffer.ElementWidth = tri.size();
-
-  ComPtr<ID3D11ShaderResourceView> vbView;
-
-#if 0
-  kronk::dx::ThrowIfFailed(
-    ctx.m_device->CreateShaderResourceView(vb.Get(), &viewDesc, vbView.GetAddressOf()));
-#endif
-
-  ComPtr<ID3D11Buffer> ib =
-    kronk::CreateIndexBuffer<u32>(ctx.m_device.Get(), sizeof(indices), indices);
+  ComPtr<ID3D11Buffer> ib = dx::CreateIndexBuffer<u32>(ctx.device.Get(), sizeof(indices), indices);
 
   const glm::mat4      mvp = glm::mat4{1.0};
-  ComPtr<ID3D11Buffer> cb  = kronk::CreateConstantBuffer<glm::mat4x4>(ctx.m_device.Get(), &mvp);
+  ComPtr<ID3D11Buffer> cb  = dx::CreateConstantBuffer<glm::mat4x4>(ctx.device.Get(), &mvp);
 
   f32 clearColor[] = {0.5, 0.5, 0.5, 1.0};
-  ctx.m_context->RSSetState(colordNormalsPipeline.rasterizerState.Get());
+  ctx.context->RSSetState(colordNormalsPipeline.rasterizerState.Get());
   D3D11_VIEWPORT viewport = {
     .TopLeftX = 0.0f,
     .TopLeftY = 0.0f,
@@ -70,18 +54,18 @@ int main(int argc, char **argv)
     .MinDepth = 0.0,
     .MaxDepth = 1.0,
   };
-  ctx.m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  ctx.m_context->IASetIndexBuffer(ib.Get(), DXGI_FORMAT_R32_UINT, 0);
-  ctx.m_context->RSSetViewports(1, &viewport);
-  ctx.m_context->ClearRenderTargetView(ctx.m_backbuffer_render_target_view.Get(), clearColor);
-  ctx.m_swapchain->Present(1, 0);
-  ctx.m_context->VSSetShader(colordNormalsPipeline.vertexShader.Get(), nullptr, 0);
-  ctx.m_context->PSSetShader(colordNormalsPipeline.pixelShader.Get(), nullptr, 0);
-  std::array resourceViews = {vbView.Get()};
-  ctx.m_context->VSSetShaderResources(0, 1, resourceViews.data());
-  ctx.m_context->VSSetConstantBuffers(0, 1, cb.GetAddressOf());
-  ctx.m_context->Draw(3, 0);
-  ctx.m_swapchain->Present(1, 0);
+  ctx.context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  ctx.context->IASetIndexBuffer(ib.Get(), DXGI_FORMAT_R32_UINT, 0);
+  ctx.context->RSSetViewports(1, &viewport);
+  ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
+  ctx.swapchain->Present(1, 0);
+  ctx.context->VSSetShader(colordNormalsPipeline.vertexShader.Get(), nullptr, 0);
+  ctx.context->PSSetShader(colordNormalsPipeline.pixelShader.Get(), nullptr, 0);
+  std::array resourceViews = {vb.view.Get()};
+  ctx.context->VSSetShaderResources(0, 1, resourceViews.data());
+  ctx.context->VSSetConstantBuffers(0, 1, cb.GetAddressOf());
+  ctx.context->Draw(3, 0);
+  ctx.swapchain->Present(1, 0);
 
   // LoadModel();
 
@@ -96,10 +80,10 @@ int main(int argc, char **argv)
         running = false;
       }
     }
-    ctx.m_context->ClearRenderTargetView(ctx.m_backbuffer_render_target_view.Get(), clearColor);
-    ctx.m_context->ClearDepthStencilView(ctx.m_depth_stencil_view.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
-    ctx.m_context->Draw(3, 0);
-    ctx.m_swapchain->Present(1, 0);
+    ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
+    ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+    ctx.context->Draw(3, 0);
+    ctx.swapchain->Present(1, 0);
   }
   return 0;
 }

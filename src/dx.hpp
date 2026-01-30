@@ -14,7 +14,7 @@
 using Microsoft::WRL::ComPtr;
 struct SDL_Window;
 
-namespace kronk::dx
+namespace dx
 {
 
 template<typename T>
@@ -51,10 +51,7 @@ constexpr void ThrowIfFailed(HRESULT hr)
     throw com_exception(hr);
   }
 }
-} // namespace kronk::dx
 
-namespace kronk
-{
 constexpr void Check(HRESULT result)
 {
   if (FAILED(result))
@@ -76,23 +73,23 @@ void   DestroyWin(Window &win);
 
 struct RenderContext
 {
-  ComPtr<ID3D11Device3>         m_device;
-  ComPtr<ID3D11DeviceContext3>  m_context;
-  ComPtr<ID3D11RasterizerState> m_rasterizer_state;
+  ComPtr<ID3D11Device3>         device;
+  ComPtr<ID3D11DeviceContext3>  context;
+  ComPtr<ID3D11RasterizerState> rasterizerState;
 
-  ComPtr<IDXGISwapChain>         m_swapchain;
-  ComPtr<ID3D11Texture2D>        m_backbuffer;
-  ComPtr<ID3D11RenderTargetView> m_backbuffer_render_target_view;
-  ComPtr<ID3D11Texture2D>        m_depth_stencil_buffer;
-  ComPtr<ID3D11DepthStencilView> m_depth_stencil_view;
+  ComPtr<IDXGISwapChain>         swapchain;
+  ComPtr<ID3D11Texture2D>        backbuffer;
+  ComPtr<ID3D11RenderTargetView> backbufferRTV;
+  ComPtr<ID3D11Texture2D>        depthStencilBuffer;
+  ComPtr<ID3D11DepthStencilView> depthStencilView;
 
   ID3D11Device3 *Device() const
   {
-    return m_device.Get();
+    return device.Get();
   }
   ID3D11DeviceContext3 *DeviceContext() const
   {
-    return m_context.Get();
+    return context.Get();
   }
 };
 
@@ -108,10 +105,17 @@ struct RenderPipeline
 RenderPipeline
 CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11Device3 *device);
 
+struct VertexBuffer
+{
+  ComPtr<ID3D11Buffer>             buf;
+  ComPtr<ID3D11ShaderResourceView> view;
+};
+
 template<typename T>
-ComPtr<ID3D11Buffer>
+VertexBuffer
 CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const T> data)
 {
+  assert(size % stride == 0);
   D3D11_BUFFER_DESC desc = {
     .ByteWidth           = size,
     .Usage               = D3D11_USAGE_DYNAMIC,
@@ -133,7 +137,18 @@ CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const 
     device->CreateBuffer(&desc, &d, &vertexBuffer);
   }
 
-  return vertexBuffer;
+  ID3D11ShaderResourceView       *view{};
+  D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
+  viewDesc.Format              = DXGI_FORMAT_UNKNOWN;
+  viewDesc.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
+  viewDesc.Buffer.ElementWidth = size / stride;
+
+  dx::ThrowIfFailed(device->CreateShaderResourceView(vertexBuffer, &viewDesc, &view));
+
+  return {
+    .buf  = vertexBuffer,
+    .view = view,
+  };
 }
 
 template<typename T>
@@ -189,4 +204,4 @@ ComPtr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device3 *device, const T *data)
 
   return constantBuffer;
 }
-} // namespace kronk
+} // namespace dx

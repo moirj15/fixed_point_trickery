@@ -1,8 +1,8 @@
 #pragma once
-#include <memory>
-#include <string>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
+#include <string>
 
 using u64 = uint64_t;
 using u32 = uint32_t;
@@ -17,7 +17,7 @@ using i8  = int8_t;
 using f32 = float;
 using f64 = double;
 
-namespace kronk::io
+namespace io
 {
 struct FileDeleter
 {
@@ -29,6 +29,6 @@ struct FileDeleter
 
 using FilePtr = std::unique_ptr<FILE, FileDeleter>;
 
-std::string ReadFile(const std::string& path);
+std::string ReadFile(const std::string &path);
 
-} // namespace kronk::io
+} // namespace io
