@@ -73,6 +73,17 @@ ComPtr<ID3D11ComputeShader> CompileCompute(const std::string &path, ID3D11Device
   return shader;
 }
 
+template<typename T, typename CompFunc>
+void RecompileIfChanged(WatchPair<T> &shaders, CompFunc compFunc, ID3D11Device3 *device, u32 handle)
+{
+  const std::string &path      = shaders.sourcePaths[handle];
+  auto               writeTime = std::filesystem::last_write_time(std::filesystem::path{path});
+  if (writeTime > shaders.times[handle])
+  {
+    shaders.Set(handle, compFunc(shaders.sourcePaths[handle], device), writeTime);
+  }
+}
+
 } // namespace
 
 RenderProgramHandle
@@ -82,11 +93,11 @@ ShaderWatcher::RegisterShader(const std::string &vertexPath, const std::string &
   mNextRenderProgram++;
   mVertexShaders.Add(
     vertexPath,
-    CompileVert(vertexPath, mDevice),
+    ::CompileVert(vertexPath, mDevice),
     std::filesystem::last_write_time(std::filesystem::path{vertexPath}));
   mPixelShaders.Add(
     pixelPath,
-    CompilePixel(pixelPath, mDevice),
+    ::CompilePixel(pixelPath, mDevice),
     std::filesystem::last_write_time(std::filesystem::path{pixelPath}));
   return handle;
 }
@@ -97,7 +108,7 @@ ComputeProgramHandle ShaderWatcher::RegisterShader(const std::string &computePat
   mNextComputeProgram++;
   mComputeShaders.Add(
     computePath,
-    CompileCompute(computePath, mDevice),
+    ::CompileCompute(computePath, mDevice),
     std::filesystem::last_write_time(std::filesystem::path{computePath}));
   return handle;
 }
@@ -107,7 +118,8 @@ RenderProgram ShaderWatcher::GetRenderProgram(RenderProgramHandle handle)
   assert(handle < mVertexShaders.shaders.size());
   assert(handle < mPixelShaders.shaders.size());
 #ifdef DEBUG
-  auto vertexWriteTime = std::filesystem::last_write_time(std::filesystem::);
+  ::RecompileIfChanged(mVertexShaders, CompileVert, mDevice, handle);
+  ::RecompileIfChanged(mPixelShaders, CompilePixel, mDevice, handle);
 #endif
   return {
     .vertexShader = mVertexShaders.shaders[handle].Get(),
@@ -119,6 +131,7 @@ ID3D11ComputeShader *ShaderWatcher::GetComputeProgram(ComputeProgramHandle handl
 {
   assert(handle < mComputeShaders.shaders.size());
 #ifdef DEBUG
+  ::RecompileIfChanged(mComputeShaders, CompileCompute, mDevice, handle);
 #endif
   return mComputeShaders.shaders[handle].Get();
 }

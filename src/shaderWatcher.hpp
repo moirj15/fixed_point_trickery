@@ -16,32 +16,32 @@ struct RenderProgram
   ID3D11PixelShader  *pixelShader;
 };
 
+template<typename T>
+struct WatchPair
+{
+  std::vector<std::string>                     sourcePaths;
+  std::vector<ComPtr<T>>                       shaders;
+  std::vector<std::filesystem::file_time_type> times;
+
+  void Add(std::string sourcePath, ComPtr<T> shader, std::filesystem::file_time_type time)
+  {
+    sourcePaths.emplace_back(std::move(sourcePath));
+    shaders.emplace_back(shader);
+    times.emplace_back(time);
+  }
+
+  void Set(u32 i, ComPtr<T> shader, std::filesystem::file_time_type time)
+  {
+    assert(i < shaders.size());
+    shaders[i] = shader;
+    times[i]   = time;
+  }
+};
+
 class ShaderWatcher final
 {
   RenderProgramHandle  mNextRenderProgram{};
   ComputeProgramHandle mNextComputeProgram{};
-
-  template<typename T>
-  struct WatchPair
-  {
-    std::vector<std::string>                     sourcePaths;
-    std::vector<ComPtr<T>>                       shaders;
-    std::vector<std::filesystem::file_time_type> times;
-
-    void Add(std::string sourcePath, ComPtr<T> shader, std::filesystem::file_time_type time)
-    {
-      sourcePaths.emplace_back(std::move(sourcePath));
-      shaders.emplace_back(shader);
-      times.emplace_back(time);
-    }
-
-    void Set(u32 i, ComPtr<T> shader, std::filesystem::file_time_type time)
-    {
-      assert(i < shaders.size());
-      shaders[i] = shader;
-      times[i]   = time;
-    }
-  };
 
   WatchPair<ID3D11VertexShader>  mVertexShaders;
   WatchPair<ID3D11PixelShader>   mPixelShaders;
