@@ -118,7 +118,11 @@ add_executable(tests
   src/utils.cpp
   src/dx.hpp
   src/dx.cpp
+  src/shaderWatcher.hpp
+  src/shaderWatcher.cpp
+  src/tests/shaderWatcherTests.cpp
 )
+
 include(CTest)
 include(Catch)
 catch_discover_tests(tests)
