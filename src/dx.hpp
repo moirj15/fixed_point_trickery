@@ -181,8 +181,10 @@ ComPtr<ID3D11Buffer> CreateIndexBuffer(ID3D11Device3 *device, u32 size, std::spa
 template<typename T>
 ComPtr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device3 *device, const T *data)
 {
+  constexpr u32 size = GpuSizeof<T>();
+
   D3D11_BUFFER_DESC desc = {
-    .ByteWidth           = sizeof(T),
+    .ByteWidth           = size + 128 - (size % 128),
     .Usage               = D3D11_USAGE_DYNAMIC,
     .BindFlags           = D3D11_BIND_CONSTANT_BUFFER,
     .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
