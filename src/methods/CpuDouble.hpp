@@ -3,6 +3,9 @@
 struct Scene;
 struct RenderContext;
 
+namespace methods
+{
+
 class CpuDoubleMethod final
 {
 public:
@@ -10,3 +13,5 @@ public:
 
   void Draw();
 };
+
+} // namespace methods

@@ -77,6 +77,8 @@ add_executable(fixed_point_trickery
 
   src/methods/CpuDouble.hpp
   src/methods/CpuDouble.cpp
+  src/methods/F32.hpp
+  src/methods/F32.cpp
 )
 
 include(cmake/CompilerWarnings.cmake)
