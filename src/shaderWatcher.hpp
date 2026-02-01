@@ -38,6 +38,10 @@ struct WatchPair
   }
 };
 
+/**
+ * @brief Manages shader compilation and lifetime, while also providing recompilation of shaders on
+ * modification when running a debug build.
+ */
 class ShaderWatcher final
 {
   RenderProgramHandle  mNextRenderProgram{};
@@ -53,10 +57,40 @@ public:
   {
   }
 
+  /**
+   * @brief Registers and compiles the given vertex and pixel shaders. Note: paths are relative to
+   * the directory the application is started in.
+   * @param vertexPath The path to the vertex shader.
+   * @param pixelPath The path to the pixel shader.
+   * @return A `RenderProgramHandle` that can be used to access the compiled shaders by calling
+   * `GetRenderProgram.
+   */
   RenderProgramHandle RegisterShader(const std::string &vertexPath, const std::string &pixelPath);
 
+  /**
+   * @brief Registers and compiles the given compute shader. Note: path is relative to the directory
+   * the application is started in.
+   * @param computePath The path to the compute shader.
+   * @return A `ComputeProgramHandle` that can be used to access the compiled shader by calling
+   * `GetComputeProgram`.
+   */
   ComputeProgramHandle RegisterShader(const std::string &computePath);
 
-  RenderProgram        GetRenderProgram(RenderProgramHandle handle);
+  /**
+   * @brief Retrieves the `RenderProgram` containing the vertex and pixel shaders corresponding to
+   * the given handle. Note: if running a debug build, this will check if the shader sources have
+   * been updated and recompile if necessary, so pointers may be invalidated.
+   * @param handle The handle that points to the `RenderProgram`.
+   * @return The `RenderProgram` containing the vertex and pixel shaders.
+   */
+  RenderProgram GetRenderProgram(RenderProgramHandle handle);
+
+  /**
+   * @brief Retrieves the compute shader corresponding to the given handle. Note: if running a debug
+   * build, this will check if the shader sources have been updated and recompile if necessary, so
+   * pointers may be invalidated.
+   * @param handle The handle that points to the compute shader.
+   * @return The compute shader.
+   */
   ID3D11ComputeShader *GetComputeProgram(ComputeProgramHandle handle);
 };
