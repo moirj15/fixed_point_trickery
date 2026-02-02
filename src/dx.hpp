@@ -18,7 +18,7 @@ namespace dx
 {
 
 template<typename T>
-u32 GpuSizeof()
+constexpr u32 GpuSizeof()
 {
   return static_cast<u32>(sizeof(T));
 }
@@ -128,13 +128,13 @@ CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const 
   ID3D11Buffer *vertexBuffer{};
   if (data.empty())
   {
-    device->CreateBuffer(&desc, nullptr, &vertexBuffer);
+    dx::ThrowIfFailed(device->CreateBuffer(&desc, nullptr, &vertexBuffer));
   }
   else
   {
     D3D11_SUBRESOURCE_DATA d{};
     d.pSysMem = data.data();
-    device->CreateBuffer(&desc, &d, &vertexBuffer);
+    dx::ThrowIfFailed(device->CreateBuffer(&desc, &d, &vertexBuffer));
   }
 
   ID3D11ShaderResourceView       *view{};

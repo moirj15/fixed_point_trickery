@@ -1,4 +1,6 @@
 #include "dx.hpp"
+#include "methods/F32.hpp"
+#include "shaderWatcher.hpp"
 #include "utils.hpp"
 
 #include <SDL2/SDL.h>
@@ -17,6 +19,7 @@ int main(int argc, char **argv)
 
   dx::RenderContext ctx = dx::InitContext(window);
 
+#if 0
   dx::RenderPipeline colordNormalsPipeline = dx::CreatePipeline(
     "shaders/colored_normals.hlsl",
     "shaders/colored_normals.hlsl",
@@ -66,8 +69,13 @@ int main(int argc, char **argv)
   ctx.context->VSSetConstantBuffers(0, 1, cb.GetAddressOf());
   ctx.context->Draw(3, 0);
   ctx.swapchain->Present(1, 0);
+#endif
 
   // LoadModel();
+
+  ShaderWatcher      shaderWatcher{ctx.Device()};
+  methods::F32Method f32Method{ctx.Device(), shaderWatcher};
+  f32Method.Update(ctx.DeviceContext());
 
   SDL_Event e;
   bool      running = true;
@@ -80,9 +88,12 @@ int main(int argc, char **argv)
         running = false;
       }
     }
+#if 0
     ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
     ctx.context->Draw(3, 0);
+#endif
+    f32Method.Draw(ctx, shaderWatcher);
     ctx.swapchain->Present(1, 0);
   }
   return 0;

@@ -8,6 +8,13 @@
       "project": "CMakeLists.txt",
       "projectTarget": "tests.exe",
       "currentDir": "${workspaceRoot}"
+    },
+    {
+      "type": "default",
+      "name": "app",
+      "project": "CMakeLists.txt",
+      "projectTarget": "fixed_point_trickery.exe",
+      "currentDir": "${workspaceRoot}"
     }
   ]
 }

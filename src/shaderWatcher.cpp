@@ -91,6 +91,7 @@ ShaderWatcher::RegisterShader(const std::string &vertexPath, const std::string &
 {
   RenderProgramHandle handle = mNextRenderProgram;
   mNextRenderProgram++;
+  auto p = std::filesystem::current_path();
   mVertexShaders.Add(
     vertexPath,
     ::CompileVert(vertexPath, mDevice),

@@ -8,8 +8,8 @@ namespace methods
 
 class F32Method final
 {
-  const std::string VERT_PATH  = "src/shaders/F32.hlsl";
-  const std::string PIXEL_PATH = "src/shaders/F32.hlsl";
+  const std::string VERT_PATH  = "shaders/F32.hlsl";
+  const std::string PIXEL_PATH = "shaders/F32.hlsl";
 
   RenderProgramHandle  mShadersHandle;
   dx::VertexBuffer     mVertBuf;
