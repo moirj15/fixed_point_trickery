@@ -32,8 +32,8 @@ VSOut VSMain(uint vertexID: SV_VertexID)
   return ret;
 }
 
-float4 PSMain(float3 color : COLOR) : SV_TARGET
+float4 PSMain(VSOut vsOut) : SV_TARGET
 {
-  return float4(color, 1.0);
+  return float4(vsOut.color, 1.0);
 
 }

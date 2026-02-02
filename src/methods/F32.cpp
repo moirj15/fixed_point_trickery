@@ -35,9 +35,8 @@ void F32Method::Update(ID3D11DeviceContext3 *ctx)
 {
   // NOP for now
   D3D11_MAPPED_SUBRESOURCE mapped{};
-  ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE, 0, &mapped);
+  dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
   SceneData data{glm::mat4(1.0f), glm::vec3(1.0)};
-#error Think I have to mark the buffer as cpu writeable
   memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
   ctx->Unmap(mConstantBuf.Get(), 0);
 }
@@ -51,7 +50,9 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
   ctx->VSSetShader(rp.vertexShader, nullptr, 0);
   ctx->VSSetShaderResources(0, 1, mVertBuf.view.GetAddressOf());
   ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
+
   ctx->RSSetState(renderContext.rasterizerState.Get());
+
   ctx->PSSetShader(rp.pixelShader, nullptr, 0);
   ctx->OMSetRenderTargets(
     1,

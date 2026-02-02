@@ -147,6 +147,17 @@ RenderContext InitContext(const Window &window)
     context.backbufferRTV.GetAddressOf(),
     context.depthStencilView.Get());
 
+  D3D11_VIEWPORT viewport = {
+    .TopLeftX = 0.0f,
+    .TopLeftY = 0.0f,
+    .Width    = static_cast<f32>(window.width),
+    .Height   = static_cast<f32>(window.height),
+    .MinDepth = 0.0,
+    .MaxDepth = 1.0,
+  };
+
+  context.context->RSSetViewports(1, &viewport);
+
   return context;
 }
 
