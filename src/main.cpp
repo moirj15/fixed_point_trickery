@@ -72,6 +72,7 @@ int main(int argc, char **argv)
 #endif
 
   // LoadModel();
+  f32 clearColor[] = {0.5, 0.5, 0.5, 1.0};
 
   ShaderWatcher      shaderWatcher{ctx.Device()};
   methods::F32Method f32Method{ctx.Device(), shaderWatcher};
@@ -93,6 +94,8 @@ int main(int argc, char **argv)
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
     ctx.context->Draw(3, 0);
 #endif
+    ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
+    ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
     f32Method.Draw(ctx, shaderWatcher);
     ctx.swapchain->Present(1, 0);
   }

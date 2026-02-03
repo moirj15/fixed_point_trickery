@@ -19,9 +19,9 @@ struct SceneData
 };
 
 std::array<Vertex, 3> v{
-  glm::vec3{0, 1, 0},
-  glm::vec3{-1, 0, 0},
-  glm::vec3{1, 0, 0},
+  glm::vec3{0, 1, -1},
+  glm::vec3{-1, 0, -1},
+  glm::vec3{1, 0, -1},
 };
 
 F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :

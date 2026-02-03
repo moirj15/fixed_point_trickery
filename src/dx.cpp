@@ -67,7 +67,7 @@ RenderContext InitContext(const Window &window)
 
   // TODO: temporary rasterizer state, should create a manager for this, maybe create a handle type
   // for this?
-  // TODO: maybe an internal handle just for tracking this internaly?
+  // TODO: maybe an internal handle just for tracking this internally?
   D3D11_RASTERIZER_DESC rasterizerDesc = {
     .FillMode              = D3D11_FILL_SOLID,
     .CullMode              = D3D11_CULL_NONE,
