@@ -74,6 +74,9 @@ add_executable(fixed_point_trickery
   src/scene.hpp
   src/shaderWatcher.hpp
   src/shaderWatcher.cpp
+  src/modelLoader.hpp
+  src/modelLoader.cpp
+
 
   src/methods/CpuDouble.hpp
   src/methods/CpuDouble.cpp

@@ -13,7 +13,7 @@ struct ModelVertex
   glm::vec2 textureCoord;
 };
 
-struct ModelPart
+struct ModelMesh
 {
   std::vector<ModelVertex> vertices;
   std::vector<u32>         indices;
@@ -21,7 +21,7 @@ struct ModelPart
 
 struct Model
 {
-  std::vector<ModelPart> parts;
+  std::vector<ModelMesh> parts;
   glm::dvec3             position;
 };
 

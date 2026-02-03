@@ -33,7 +33,6 @@ F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
 
 void F32Method::Update(ID3D11DeviceContext3 *ctx)
 {
-  // NOP for now
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
   SceneData data{glm::mat4(1.0f), glm::vec3(1.0)};
