@@ -7,31 +7,27 @@
 namespace methods
 {
 
-struct Vertex
-{
-  glm::vec3 pos;
-};
-
 struct SceneData
 {
   glm::mat4 mvp;
   glm::vec3 color;
 };
 
-std::array<Vertex, 3> v{
-  glm::vec3{0, 1, -1},
-  glm::vec3{-1, 0, -1},
-  glm::vec3{1, 0, -1},
-};
-
-F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
+F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher, const Scene &scene) :
     mShadersHandle{shaderWatcher.RegisterShader(VERT_PATH, PIXEL_PATH)},
-    mVertBuf{dx::CreateVertexBuffer<Vertex>(device, sizeof(Vertex) * 3, sizeof(Vertex), v)},
-    mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)}
+    mVertBuf{dx::CreateVertexBuffer<ModelVertex>(
+      device,
+      scene.models[0].parts.size(),
+      std::span{
+        scene.models[0].parts[0].vertices.begin(),
+        scene.models[0].parts[0].vertices.end(),
+      })},
+    mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
+    mScene{scene}
 {
 }
 
-void F32Method::Update(ID3D11DeviceContext3 *ctx)
+void F32Method::Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &camera)
 {
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
