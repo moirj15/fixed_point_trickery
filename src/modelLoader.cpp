@@ -28,8 +28,8 @@ Model ProcessMeshes(const aiScene *scene, const std::vector<aiMesh *> &aiMeshes)
           },
         .textureCoord =
           {
-            aiMesh->mTextureCoords[i][0].y,
-            aiMesh->mTextureCoords[i][0].y,
+            aiMesh->mTextureCoords[0][i].y,
+            aiMesh->mTextureCoords[0][i].y,
           },
       });
     }
@@ -65,7 +65,7 @@ Model LoadModel(const std::string &path)
   // const std::string MODEL_PATH       = "../../models";
 
   Assimp::Importer importer;
-  const aiScene   *scene = importer.ReadFile("models/suzanne.glb", aiProcess_Triangulate);
+  const aiScene   *scene = importer.ReadFile(path, aiProcess_Triangulate);
   assert(scene);
   std::vector<aiMesh *> aiMeshes;
   ProcessNode(scene->mRootNode, scene, aiMeshes);

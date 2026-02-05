@@ -75,7 +75,7 @@ int main(int argc, char **argv)
   // LoadModel();
   f32 clearColor[] = {0.5, 0.5, 0.5, 1.0};
 
-  Model              model = LoadModel("");
+  Model              model = LoadModel("models/suzanne.glb");
   ShaderWatcher      shaderWatcher{ctx.Device()};
   methods::F32Method f32Method{ctx.Device(), shaderWatcher};
   f32Method.Update(ctx.DeviceContext());
