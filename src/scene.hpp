@@ -8,9 +8,9 @@
 
 struct ModelVertex
 {
-  glm::vec3 position;
-  glm::vec3 normal;
-  glm::vec2 textureCoord;
+  glm::vec3 position{};
+  glm::vec3 normal{};
+  glm::vec2 textureCoord{};
 };
 
 struct ModelMesh
@@ -22,7 +22,7 @@ struct ModelMesh
 struct Model
 {
   std::vector<ModelMesh> parts;
-  glm::dvec3             position;
+  glm::dvec3             position{};
 };
 
 struct Scene

@@ -112,17 +112,15 @@ struct VertexBuffer
 };
 
 template<typename T>
-VertexBuffer
-CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const T> data)
+VertexBuffer CreateVertexBuffer(ID3D11Device3 *device, u32 count, std::span<const T> data)
 {
-  assert(size % stride == 0);
   D3D11_BUFFER_DESC desc = {
-    .ByteWidth           = size,
+    .ByteWidth           = count * GpuSizeof<T>(),
     .Usage               = D3D11_USAGE_DYNAMIC,
     .BindFlags           = D3D11_BIND_SHADER_RESOURCE,
     .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
     .MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
-    .StructureByteStride = stride,
+    .StructureByteStride = GpuSizeof<T>(),
   };
 
   ID3D11Buffer *vertexBuffer{};
@@ -141,7 +139,7 @@ CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const 
   D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
   viewDesc.Format              = DXGI_FORMAT_UNKNOWN;
   viewDesc.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
-  viewDesc.Buffer.ElementWidth = size / stride;
+  viewDesc.Buffer.ElementWidth = count;
 
   dx::ThrowIfFailed(device->CreateShaderResourceView(vertexBuffer, &viewDesc, &view));
 
