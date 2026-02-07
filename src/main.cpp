@@ -91,9 +91,26 @@ int main(int argc, char **argv)
   // f32Method.Update(ctx.DeviceContext(), {1.0f});
 
   SDL_Event e;
-  bool      running = true;
+  bool      running       = true;
+  bool      firstBtnPress = false;
+  bool      btnReleased   = true;
+
+  i32 lastMouseX{}, lastMouseY{};
+  i32 currMouseX{}, currMouseY{};
+
+  auto ToNDC = [](i32 x, i32 y) -> glm::vec2 {
+    return {
+      ((f32)x / WIDTH) * 2.0 - 1.0,
+      -(((f32)y / HEIGHT) * 2.0 - 1.0),
+    };
+  };
+
+  u32 currTime{}, lastTime{};
   while (running)
   {
+    lastTime        = currTime;
+    currTime        = SDL_GetPerformanceCounter();
+    const f64 delta = (((f64)currTime - (f64)lastTime) / SDL_GetPerformanceFrequency());
     while (SDL_PollEvent(&e) > 0)
     {
       if (e.type == SDL_QUIT)
@@ -106,7 +123,48 @@ int main(int argc, char **argv)
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
     ctx.context->Draw(3, 0);
 #endif
-
+    SDL_PumpEvents();
+    i32       x{}, y{};
+    const u32 btn = SDL_GetMouseState(&x, &y);
+    if ((btn & SDL_BUTTON_LMASK) != 0)
+    {
+      if (firstBtnPress)
+      {
+        firstBtnPress = false;
+        lastMouseX    = x;
+        lastMouseY    = y;
+        currMouseX    = x;
+        currMouseY    = y;
+      }
+      else
+      {
+        lastMouseX = currMouseX;
+        lastMouseY = currMouseY;
+        currMouseX = x;
+        currMouseY = y;
+      }
+      btnReleased = false;
+      currMouseX  = x;
+      currMouseY  = y;
+    }
+    else
+    {
+      firstBtnPress = true;
+      lastMouseX    = x;
+      lastMouseY    = y;
+      currMouseX    = x;
+      currMouseY    = y;
+    }
+    const u8 *keyState = SDL_GetKeyboardState(nullptr);
+    if (keyState[SDL_SCANCODE_W])
+    {
+      arcballCamera.zoom(1.0 * delta);
+    }
+    else if (keyState[SDL_SCANCODE_S])
+    {
+      arcballCamera.zoom(-1.0 * delta);
+    }
+    arcballCamera.rotate(ToNDC(lastMouseX, lastMouseY), ToNDC(currMouseX, currMouseY));
     f32Method.Update(ctx.DeviceContext(), projection * glm::dmat4{arcballCamera.transform()});
 
     ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
