@@ -16,6 +16,7 @@ class F32Method final
 
   RenderProgramHandle  mShadersHandle;
   dx::VertexBuffer     mVertBuf;
+  ComPtr<ID3D11Buffer> mIndexBuf;
   ComPtr<ID3D11Buffer> mConstantBuf;
   Scene                mScene;
 

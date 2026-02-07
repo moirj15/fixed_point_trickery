@@ -14,6 +14,8 @@ cbuffer Constants
 struct Vertex
 {
   float3 pos;
+  float3 normal;
+  float2 textureCoord;
 };
 
 StructuredBuffer<Vertex> vertices;
@@ -39,6 +41,7 @@ VSOut VSMain(uint vertexID: SV_VertexID)
   };
   VSOut ret;
   ret.pos = mul(sceneData.mvp, float4(vertices[vertexID].pos, 1.0f));
+  //ret.pos = float4(vertices[vertexID].pos, 1.0f);
   ret.color = colors[vertexID % 8];
   return ret;
 }
