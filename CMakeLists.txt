@@ -76,6 +76,8 @@ add_executable(fixed_point_trickery
   src/shaderWatcher.cpp
   src/modelLoader.hpp
   src/modelLoader.cpp
+  src/arcball_camera.h
+  src/arcball_camera.cpp
 
 
   src/methods/CpuDouble.hpp

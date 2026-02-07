@@ -61,7 +61,7 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
     1,
     renderContext.backbufferRTV.GetAddressOf(),
     renderContext.depthStencilView.Get());
-  u32 drawCount = mScene.models[0].parts[0].vertices.size();
+  u32 drawCount = mScene.models[0].parts[0].indices.size();
   ctx->DrawIndexed(drawCount, 0, 0);
 }
 
