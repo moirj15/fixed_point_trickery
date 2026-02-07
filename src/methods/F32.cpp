@@ -1,6 +1,7 @@
 #include "F32.hpp"
 
 #include <array>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
@@ -17,11 +18,15 @@ F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher, const 
     mShadersHandle{shaderWatcher.RegisterShader(VERT_PATH, PIXEL_PATH)},
     mVertBuf{dx::CreateVertexBuffer<ModelVertex>(
       device,
-      scene.models[0].parts.size(),
+      scene.models[0].parts[0].vertices.size(),
       std::span{
         scene.models[0].parts[0].vertices.begin(),
         scene.models[0].parts[0].vertices.end(),
       })},
+    mIndexBuf{dx::CreateIndexBuffer(
+      device,
+      scene.models[0].parts[0].indices.size(),
+      std::span{scene.models[0].parts[0].indices.begin(), scene.models[0].parts[0].indices.end()})},
     mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
     mScene{scene}
 {
@@ -31,8 +36,10 @@ void F32Method::Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &camera)
 {
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
-  SceneData data{glm::mat4(1.0f), glm::vec3(1.0)};
-  memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
+  // SceneData data{glm::mat4(1.0f), glm::vec3(1.0)};
+  // memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
+  glm::mat4 mvp{camera};
+  memcpy(mapped.pData, glm::value_ptr(mvp), sizeof(glm::mat4));
   ctx->Unmap(mConstantBuf.Get(), 0);
 }
 
@@ -42,6 +49,7 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
   ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
   ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
   ctx->VSSetShader(rp.vertexShader, nullptr, 0);
   ctx->VSSetShaderResources(0, 1, mVertBuf.view.GetAddressOf());
   ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
@@ -53,7 +61,8 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
     1,
     renderContext.backbufferRTV.GetAddressOf(),
     renderContext.depthStencilView.Get());
-  ctx->Draw(3, 0);
+  u32 drawCount = mScene.models[0].parts[0].vertices.size();
+  ctx->DrawIndexed(drawCount, 0, 0);
 }
 
 } // namespace methods

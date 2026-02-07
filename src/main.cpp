@@ -10,6 +10,7 @@
 #include <array>
 #include <cassert>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 constexpr u32 WIDTH  = 1920;
 constexpr u32 HEIGHT = 1080;
@@ -75,11 +76,17 @@ int main(int argc, char **argv)
   // LoadModel();
   f32 clearColor[] = {0.5, 0.5, 0.5, 1.0};
 
-  Model              model = LoadModel("models/suzanne.glb");
-  Scene              scene{{model}};
-  ShaderWatcher      shaderWatcher{ctx.Device()};
+  Model         model = LoadModel("models/suzanne.glb");
+  Scene         scene{{model}};
+  ShaderWatcher shaderWatcher{ctx.Device()};
+
+  glm::dmat4 projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
+  glm::dmat4 camera =
+    glm::lookAt(glm::dvec3{0.0, 0.0, 5.0}, glm::dvec3{0.0, 0.0, -1.0}, glm::dvec3{0.0, 1.0, 0.0});
+
   methods::F32Method f32Method{ctx.Device(), shaderWatcher, scene};
-  f32Method.Update(ctx.DeviceContext(), glm::dmat4{1.0});
+  f32Method.Update(ctx.DeviceContext(), projection * camera);
+  // f32Method.Update(ctx.DeviceContext(), {1.0f});
 
   SDL_Event e;
   bool      running = true;

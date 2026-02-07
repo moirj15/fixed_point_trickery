@@ -153,7 +153,7 @@ template<typename T>
 ComPtr<ID3D11Buffer> CreateIndexBuffer(ID3D11Device3 *device, u32 size, std::span<const T> data)
 {
   D3D11_BUFFER_DESC desc = {
-    .ByteWidth           = size,
+    .ByteWidth           = size * GpuSizeof<T>(),
     .Usage               = D3D11_USAGE_DYNAMIC,
     .BindFlags           = D3D11_BIND_INDEX_BUFFER,
     .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,

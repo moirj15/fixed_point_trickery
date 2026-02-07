@@ -117,6 +117,11 @@ target_link_libraries(fixed_point_trickery PRIVATE
   d3dcompiler.lib
 )
 
+if(MSVC)
+   target_compile_options(fixed_point_trickery PUBLIC "/ZI")
+   target_link_options(fixed_point_trickery PUBLIC "/INCREMENTAL")
+endif()
+
 add_executable(tests
   src/tests/main.cpp
   src/utils.hpp
