@@ -1,3 +1,4 @@
+#include "arcball_camera.h"
 #include "dx.hpp"
 #include "methods/F32.hpp"
 #include "modelLoader.hpp"
@@ -80,12 +81,13 @@ int main(int argc, char **argv)
   Scene         scene{{model}};
   ShaderWatcher shaderWatcher{ctx.Device()};
 
-  glm::dmat4 projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
-  glm::dmat4 camera =
-    glm::lookAt(glm::dvec3{0.0, 0.0, 5.0}, glm::dvec3{0.0, 0.0, -1.0}, glm::dvec3{0.0, 1.0, 0.0});
+  glm::dmat4    projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
+  ArcballCamera arcballCamera{
+    glm::dvec3{0.0, 0.0, 5.0},
+    glm::dvec3{0.0, 0.0, -1.0},
+    glm::dvec3{0.0, 1.0, 0.0}};
 
   methods::F32Method f32Method{ctx.Device(), shaderWatcher, scene};
-  f32Method.Update(ctx.DeviceContext(), projection * camera);
   // f32Method.Update(ctx.DeviceContext(), {1.0f});
 
   SDL_Event e;
@@ -104,6 +106,9 @@ int main(int argc, char **argv)
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
     ctx.context->Draw(3, 0);
 #endif
+
+    f32Method.Update(ctx.DeviceContext(), projection * glm::dmat4{arcballCamera.transform()});
+
     ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
     f32Method.Draw(ctx, shaderWatcher);
