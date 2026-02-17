@@ -4,12 +4,30 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <filesystem>
+#include <print>
 
 Model ProcessMeshes(const aiScene *scene, const std::vector<aiMesh *> &aiMeshes)
 {
   Model model;
+  auto  GetTexCoord = [](aiMesh *aiMesh, size_t i) -> glm::vec2 {
+    if (aiMesh->mTextureCoords[0] != nullptr)
+    {
+      return {
+        aiMesh->mTextureCoords[0][i].x,
+        aiMesh->mTextureCoords[0][i].y,
+      };
+    }
+    else
+    {
+      return {0.0f, 0.0f};
+    }
+  };
   for (auto *aiMesh : aiMeshes)
   {
+    if (aiMesh->mPrimitiveTypes != aiPrimitiveType_TRIANGLE)
+    {
+      continue;
+    }
     ModelMesh mesh;
     for (size_t i = 0; i < aiMesh->mNumVertices; i++)
     {
@@ -26,13 +44,11 @@ Model ProcessMeshes(const aiScene *scene, const std::vector<aiMesh *> &aiMeshes)
             aiMesh->mNormals[i].y,
             aiMesh->mNormals[i].z,
           },
-        .textureCoord =
-          {
-            aiMesh->mTextureCoords[0][i].y,
-            aiMesh->mTextureCoords[0][i].y,
-          },
+        .textureCoord = GetTexCoord(aiMesh, i),
+
       });
     }
+    mesh.hasTexCoord = aiMesh->mTextureCoords[0] != nullptr;
 
     for (size_t faceIndex = 0; faceIndex < aiMesh->mNumFaces; faceIndex++)
     {
@@ -65,7 +81,17 @@ Model LoadModel(const std::string &path)
   // const std::string MODEL_PATH       = "../../models";
 
   Assimp::Importer importer;
-  const aiScene   *scene = importer.ReadFile(path, aiProcess_Triangulate);
+  auto            *glbImporter = importer.GetImporter("glb");
+  auto             p           = std::filesystem::current_path();
+  auto             e           = std::filesystem::exists(path);
+  // Sort by the primitive type so we can skip anything that's not an indexed triangle
+  const aiScene *scene =
+    importer.ReadFile(path, aiProcess_Triangulate | aiProcess_SortByPType | aiProcess_GenUVCoords);
+  if (scene == nullptr)
+  {
+    std::println("err: {}", importer.GetErrorString());
+    std::exit(0);
+  }
   assert(scene);
   std::vector<aiMesh *> aiMeshes;
   ProcessNode(scene->mRootNode, scene, aiMeshes);

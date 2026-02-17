@@ -14,14 +14,25 @@ class F32Method final
   const std::string VERT_PATH  = "shaders/F32.hlsl";
   const std::string PIXEL_PATH = "shaders/F32.hlsl";
 
-  RenderProgramHandle  mShadersHandle;
-  dx::VertexBuffer     mVertBuf;
-  ComPtr<ID3D11Buffer> mIndexBuf;
-  ComPtr<ID3D11Buffer> mConstantBuf;
-  Scene                mScene;
+  struct DrawOffsets
+  {
+    u32 startIndex{};
+    u32 indexCount{};
+  };
+
+  RenderProgramHandle      mShadersHandle;
+  dx::VertexBuffer         mVertBuf;
+  ComPtr<ID3D11Buffer>     mIndexBuf;
+  ComPtr<ID3D11Buffer>     mConstantBuf;
+  std::vector<DrawOffsets> mDraws;
+  Scene                    mScene{};
+  uint32_t                 mTotalDraw;
+  ID3D11Device3           *mDevice;
 
 public:
-  explicit F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher, const Scene &scene);
+  explicit F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
+
+  void SetScene(const Scene &scene);
 
   void Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &camera);
 

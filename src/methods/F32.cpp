@@ -14,22 +14,45 @@ struct SceneData
   glm::vec3 color;
 };
 
-F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher, const Scene &scene) :
+F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     mShadersHandle{shaderWatcher.RegisterShader(VERT_PATH, PIXEL_PATH)},
-    mVertBuf{dx::CreateVertexBuffer<ModelVertex>(
-      device,
-      scene.models[0].parts[0].vertices.size(),
-      std::span{
-        scene.models[0].parts[0].vertices.begin(),
-        scene.models[0].parts[0].vertices.end(),
-      })},
-    mIndexBuf{dx::CreateIndexBuffer(
-      device,
-      scene.models[0].parts[0].indices.size(),
-      std::span{scene.models[0].parts[0].indices.begin(), scene.models[0].parts[0].indices.end()})},
+    mVertBuf{},
+    mIndexBuf{},
     mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
-    mScene{scene}
+    mDevice{device}
 {
+}
+
+void F32Method::SetScene(const Scene &scene)
+{
+  std::vector<ModelVertex> vertices;
+  std::vector<u32>         indices;
+
+  u32 indexStart = 0;
+  for (auto &mesh : scene.models[0].parts)
+  {
+    for (auto &vertex : mesh.vertices)
+    {
+      vertices.push_back(vertex);
+    }
+    for (auto &index : mesh.indices)
+    {
+      indices.push_back(index + indexStart);
+    }
+    indexStart += mesh.vertices.size();
+  }
+  mVertBuf = dx::CreateVertexBuffer<ModelVertex>(
+    mDevice,
+    vertices.size(),
+    std::span{
+      vertices.begin(),
+      vertices.end(),
+    });
+  mIndexBuf = dx::CreateIndexBuffer<uint32_t>(
+    mDevice,
+    indices.size(),
+    std::span<uint32_t>{indices.begin(), indices.end()});
+  mTotalDraw = indices.size();
 }
 
 void F32Method::Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &camera)
@@ -61,8 +84,7 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
     1,
     renderContext.backbufferRTV.GetAddressOf(),
     renderContext.depthStencilView.Get());
-  u32 drawCount = mScene.models[0].parts[0].indices.size();
-  ctx->DrawIndexed(drawCount, 0, 0);
+  ctx->DrawIndexed(mTotalDraw, 0, 0);
 }
 
 } // namespace methods

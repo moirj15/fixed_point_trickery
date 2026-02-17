@@ -7,3 +7,4 @@ vcpkg_installed
 *.spv
 vc140.pdb
 *.dxbc
+imgui.ini

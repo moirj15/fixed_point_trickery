@@ -42,7 +42,8 @@ VSOut VSMain(uint vertexID: SV_VertexID)
   VSOut ret;
   ret.pos = mul(sceneData.mvp, float4(vertices[vertexID].pos, 1.0f));
   //ret.pos = float4(vertices[vertexID].pos, 1.0f);
-  ret.color = colors[vertexID % 8];
+  //ret.color = colors[vertexID % 8];
+  ret.color = (vertices[vertexID].normal + 1.0) / 2.0;
   return ret;
 }
 

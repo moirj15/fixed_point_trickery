@@ -17,6 +17,7 @@ struct ModelMesh
 {
   std::vector<ModelVertex> vertices;
   std::vector<u32>         indices;
+  bool                     hasTexCoord{};
 };
 
 struct Model

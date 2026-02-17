@@ -10,11 +10,18 @@
     {
       "name": "imgui",
       "features": [
-        "dx11-binding"
+        "dx11-binding",
+        "sdl2-binding"
       ]
     },
     "sdl2",
     "tinyobjloader",
     "plf-colony"
+  ],
+  "overrides": [
+    {
+      "name": "imgui",
+      "version": "1.91.8#2"
+    }
   ]
 }
