@@ -28,5 +28,5 @@ struct Model
 
 struct Scene
 {
-  std::vector<Model> models;
+  Model model;
 };

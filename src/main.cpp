@@ -96,6 +96,7 @@ int main(int argc, char **argv)
   Model       model = LoadModel("models/suzanne.glb");
   Scene       scene{{model}};
   f32Method.SetScene(scene);
+  glm::vec3 modelPos{0.0, 0.0, 0.0};
   while (running)
   {
     lastTime        = currTime;
@@ -113,7 +114,7 @@ int main(int argc, char **argv)
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
-    ImGui::Begin("hi", nullptr, ImGuiWindowFlags_NoResize);
+    ImGui::Begin("hi", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 
     if (ImGui::RadioButton("F32 Method", method == Method::F32))
     {
@@ -133,6 +134,9 @@ int main(int argc, char **argv)
       scene = {{model}};
       f32Method.SetScene(scene);
     }
+
+    ImGui::Separator();
+    ImGui::InputFloat3("model position", glm::value_ptr(modelPos));
 
     ImGui::End();
     SDL_PumpEvents();
@@ -180,7 +184,10 @@ int main(int argc, char **argv)
       }
     }
     arcballCamera.rotate(ToNDC(lastMouseX, lastMouseY), ToNDC(currMouseX, currMouseY));
-    f32Method.Update(ctx.DeviceContext(), projection * glm::dmat4{arcballCamera.transform()});
+    f32Method.Update(
+      ctx.DeviceContext(),
+      projection * glm::dmat4{arcballCamera.transform()},
+      glm::dvec3{modelPos});
 
     ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);

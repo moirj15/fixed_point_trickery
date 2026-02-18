@@ -3,7 +3,6 @@
 struct SceneData
 {
   float4x4 mvp;
-  float3 color;
 };
 
 cbuffer Constants

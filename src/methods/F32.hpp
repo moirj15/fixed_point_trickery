@@ -26,7 +26,7 @@ class F32Method final
   ComPtr<ID3D11Buffer>     mConstantBuf;
   std::vector<DrawOffsets> mDraws;
   Scene                    mScene{};
-  uint32_t                 mTotalDraw;
+  uint32_t                 mTotalDraw{};
   ID3D11Device3           *mDevice;
 
 public:
@@ -34,7 +34,8 @@ public:
 
   void SetScene(const Scene &scene);
 
-  void Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &camera);
+  void
+  Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &cameraProjection, const glm::dvec3 &modelPos);
 
   void Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher);
 };

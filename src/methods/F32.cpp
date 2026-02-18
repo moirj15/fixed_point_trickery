@@ -11,7 +11,6 @@ namespace methods
 struct SceneData
 {
   glm::mat4 mvp;
-  glm::vec3 color;
 };
 
 F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
@@ -29,7 +28,7 @@ void F32Method::SetScene(const Scene &scene)
   std::vector<u32>         indices;
 
   u32 indexStart = 0;
-  for (auto &mesh : scene.models[0].parts)
+  for (auto &mesh : scene.model.parts)
   {
     for (auto &vertex : mesh.vertices)
     {
@@ -55,14 +54,20 @@ void F32Method::SetScene(const Scene &scene)
   mTotalDraw = indices.size();
 }
 
-void F32Method::Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &camera)
+void F32Method::Update(
+  ID3D11DeviceContext3 *ctx,
+  const glm::dmat4     &cameraProjection,
+  const glm::dvec3     &modelPos)
 {
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
+  SceneData data{
+    .mvp = glm::mat4{cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos)},
+  };
   // SceneData data{glm::mat4(1.0f), glm::vec3(1.0)};
-  // memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
-  glm::mat4 mvp{camera};
-  memcpy(mapped.pData, glm::value_ptr(mvp), sizeof(glm::mat4));
+  memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
+  // glm::mat4 mvp{cameraProjection};
+  // memcpy(mapped.pData, glm::value_ptr(mvp), sizeof(glm::mat4));
   ctx->Unmap(mConstantBuf.Get(), 0);
 }
 
