@@ -105,14 +105,14 @@ struct RenderPipeline
 RenderPipeline
 CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11Device3 *device);
 
-struct VertexBuffer
+struct StorageBuffer
 {
   ComPtr<ID3D11Buffer>             buf;
   ComPtr<ID3D11ShaderResourceView> view;
 };
 
 template<typename T>
-VertexBuffer CreateVertexBuffer(ID3D11Device3 *device, u32 count, std::span<const T> data)
+StorageBuffer CreateStorageBuffer(ID3D11Device3 *device, u32 count, std::span<const T> data)
 {
   D3D11_BUFFER_DESC desc = {
     .ByteWidth           = count * GpuSizeof<T>(),
@@ -123,16 +123,16 @@ VertexBuffer CreateVertexBuffer(ID3D11Device3 *device, u32 count, std::span<cons
     .StructureByteStride = GpuSizeof<T>(),
   };
 
-  ID3D11Buffer *vertexBuffer{};
+  ID3D11Buffer *buffer{};
   if (data.empty())
   {
-    dx::ThrowIfFailed(device->CreateBuffer(&desc, nullptr, &vertexBuffer));
+    dx::ThrowIfFailed(device->CreateBuffer(&desc, nullptr, &buffer));
   }
   else
   {
     D3D11_SUBRESOURCE_DATA d{};
     d.pSysMem = data.data();
-    dx::ThrowIfFailed(device->CreateBuffer(&desc, &d, &vertexBuffer));
+    dx::ThrowIfFailed(device->CreateBuffer(&desc, &d, &buffer));
   }
 
   ID3D11ShaderResourceView       *view{};
@@ -141,10 +141,10 @@ VertexBuffer CreateVertexBuffer(ID3D11Device3 *device, u32 count, std::span<cons
   viewDesc.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
   viewDesc.Buffer.ElementWidth = count;
 
-  dx::ThrowIfFailed(device->CreateShaderResourceView(vertexBuffer, &viewDesc, &view));
+  dx::ThrowIfFailed(device->CreateShaderResourceView(buffer, &viewDesc, &view));
 
   return {
-    .buf  = vertexBuffer,
+    .buf  = buffer,
     .view = view,
   };
 }

@@ -36,6 +36,7 @@ enum class SceneModel
   AppoloLunarModule,
   ISS,
   Jwst,
+  Count,
 };
 
 const std::array paths = {
@@ -123,16 +124,18 @@ int main(int argc, char **argv)
 
     ImGui::Separator();
 
-    if (ImGui::RadioButton(
-          paths[ToIndex(SceneModel::Suzanne)],
-          currentModel == SceneModel::Suzanne))
+    for (u32 i = 0; i < ToIndex(SceneModel::Count); i++)
     {
-      currentModel     = SceneModel::Suzanne;
-      currentModelPath = paths[ToIndex(SceneModel::Suzanne)];
+      SceneModel sceneModel = static_cast<SceneModel>(i);
+      if (ImGui::RadioButton(paths[i], currentModel == sceneModel))
+      {
+        currentModel     = sceneModel;
+        currentModelPath = paths[i];
 
-      model = LoadModel(currentModelPath);
-      scene = {{model}};
-      f32Method.SetScene(scene);
+        model = LoadModel(currentModelPath);
+        scene = {{model}};
+        f32Method.SetScene(scene);
+      }
     }
 
     ImGui::Separator();
@@ -174,13 +177,18 @@ int main(int argc, char **argv)
     const u8 *keyState = SDL_GetKeyboardState(nullptr);
     if (!io.WantCaptureKeyboard)
     {
+      double boost = 1.0;
+      if (keyState[SDL_SCANCODE_LSHIFT])
+      {
+        boost = 10.0;
+      }
       if (keyState[SDL_SCANCODE_W])
       {
-        arcballCamera.zoom(1.0 * delta);
+        arcballCamera.zoom(boost * delta);
       }
       else if (keyState[SDL_SCANCODE_S])
       {
-        arcballCamera.zoom(-1.0 * delta);
+        arcballCamera.zoom(-boost * delta);
       }
     }
     arcballCamera.rotate(ToNDC(lastMouseX, lastMouseY), ToNDC(currMouseX, currMouseY));
