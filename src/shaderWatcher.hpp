@@ -14,6 +14,7 @@ struct RenderProgram
 {
   ID3D11VertexShader *vertexShader;
   ID3D11PixelShader  *pixelShader;
+  ID3D11InputLayout  *drawIDLayout;
 };
 
 template<typename T>
@@ -47,10 +48,11 @@ class ShaderWatcher final
   RenderProgramHandle  mNextRenderProgram{};
   ComputeProgramHandle mNextComputeProgram{};
 
-  WatchPair<ID3D11VertexShader>  mVertexShaders;
-  WatchPair<ID3D11PixelShader>   mPixelShaders;
-  WatchPair<ID3D11ComputeShader> mComputeShaders;
-  ID3D11Device3                 *mDevice;
+  WatchPair<ID3D11VertexShader>          mVertexShaders;
+  WatchPair<ID3D11PixelShader>           mPixelShaders;
+  std::vector<ComPtr<ID3D11InputLayout>> mVertexInputLayouts;
+  WatchPair<ID3D11ComputeShader>         mComputeShaders;
+  ID3D11Device3                         *mDevice;
 
 public:
   explicit ShaderWatcher(ID3D11Device3 *device) : mDevice{device}
