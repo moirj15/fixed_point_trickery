@@ -141,7 +141,6 @@ int main(int argc, char **argv)
     ImGui::Separator();
     ImGui::InputFloat3("model position", glm::value_ptr(modelPos));
 
-    ImGui::End();
     SDL_PumpEvents();
     i32       x{}, y{};
     const u32 btn = SDL_GetMouseState(&x, &y);
@@ -200,6 +199,8 @@ int main(int argc, char **argv)
     ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
     f32Method.Draw(ctx, shaderWatcher);
+
+    ImGui::End();
 
     ImGui::Render();
     // ctx.context->OMSetRenderTargets(1, &)

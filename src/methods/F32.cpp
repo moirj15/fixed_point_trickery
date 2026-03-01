@@ -4,6 +4,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+#include <imgui.h>
 
 namespace methods
 {
@@ -13,12 +14,18 @@ struct SceneData
   glm::mat4 modelView;
 };
 
+struct PerMeshData
+{
+  glm::mat4 transform{};
+  u32       vertexOffset{};
+};
+
 F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     mShadersHandle{shaderWatcher.RegisterShader(VERT_PATH, PIXEL_PATH)},
     mVertBuf{},
     mIndexBuf{},
     mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
-    mTransformsBuf{},
+    mPerMeshDataBuf{},
     mDevice{device}
 {
 }
@@ -30,7 +37,7 @@ void F32Method::SetScene(const Scene &scene)
   std::vector<u32>         indices;
 
   u32 vertexStart = 0;
-  u32 indexOffset = 0;
+  u32 startIndex  = 0;
   for (auto &mesh : scene.model.parts)
   {
     for (auto &vertex : mesh.vertices)
@@ -42,12 +49,12 @@ void F32Method::SetScene(const Scene &scene)
       indices.push_back(index /* + indexStart*/);
     }
     mDraws.push_back({
-      .indexOffset{indexOffset},
-      .startVertex{vertexStart},
+      .startIndex{startIndex},
+      .baseVertex{vertexStart},
       .indexCount{static_cast<u32>(mesh.indices.size())},
     });
     vertexStart += mesh.vertices.size();
-    indexOffset += mesh.indices.size();
+    startIndex += mesh.indices.size();
   }
   mVertBuf = dx::CreateStorageBuffer<ModelVertex>(
     mDevice,
@@ -56,16 +63,27 @@ void F32Method::SetScene(const Scene &scene)
       vertices.begin(),
       vertices.end(),
     });
+
   mIndexBuf = dx::CreateIndexBuffer<uint32_t>(
     mDevice,
     indices.size(),
     std::span<uint32_t>{indices.begin(), indices.end()});
-  mTransformsBuf = dx::CreateStorageBuffer<glm::mat4>(
+
+  std::vector<PerMeshData> perMeshData(mDraws.size());
+  for (u32 i = 0; i < perMeshData.size(); i++)
+  {
+    perMeshData[i] = {
+      .transform    = scene.model.transforms[i],
+      .vertexOffset = mDraws[i].baseVertex,
+    };
+  }
+
+  mPerMeshDataBuf = dx::CreateStorageBuffer<PerMeshData>(
     mDevice,
     scene.model.transforms.size(),
     std::span{
-      scene.model.transforms.begin(),
-      scene.model.transforms.end(),
+      perMeshData.begin(),
+      perMeshData.end(),
     });
 }
 
@@ -96,7 +114,7 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
   ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
   ctx->VSSetShader(rp.vertexShader, nullptr, 0);
   ctx->VSSetShaderResources(0, 1, mVertBuf.view.GetAddressOf());
-  ctx->VSSetShaderResources(1, 1, mTransformsBuf.view.GetAddressOf());
+  ctx->VSSetShaderResources(1, 1, mPerMeshDataBuf.view.GetAddressOf());
   ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
 
   ctx->RSSetState(renderContext.rasterizerState.Get());
@@ -106,11 +124,16 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
     1,
     renderContext.backbufferRTV.GetAddressOf(),
     renderContext.depthStencilView.Get());
-  for (u32 i = 0; i < mDraws.size(); i++)
-  {
-    const DrawOffsets draw = mDraws[i];
-    ctx->DrawIndexedInstanced(draw.indexCount, 1, draw.indexOffset, draw.startVertex, i);
-  }
+  // for (u32 i = 0; i < mDraws.size(); i++)
+  //{
+  static i32 v;
+  ImGui::SliderInt("subModel", &v, 0, mDraws.size() - 1);
+  const DrawOffsets draw = mDraws[v];
+  ImGui::Text("Index Count: %d", draw.indexCount);
+  ImGui::Text("Start Index: %d", draw.startIndex);
+  ImGui::Text("Base Vertex: %d", draw.baseVertex);
+  ctx->DrawIndexedInstanced(draw.indexCount, 1, draw.startIndex, draw.baseVertex, v);
+  //}
 }
 
 } // namespace methods

@@ -16,8 +16,8 @@ class F32Method final
 
   struct DrawOffsets
   {
-    u32 indexOffset{};
-    u32 startVertex{};
+    u32 startIndex{};
+    u32 baseVertex{};
     u32 indexCount{};
   };
 
@@ -25,7 +25,7 @@ class F32Method final
   dx::StorageBuffer        mVertBuf;
   ComPtr<ID3D11Buffer>     mIndexBuf;
   ComPtr<ID3D11Buffer>     mConstantBuf;
-  dx::StorageBuffer        mTransformsBuf;
+  dx::StorageBuffer        mPerMeshDataBuf;
   std::vector<DrawOffsets> mDraws;
   Scene                    mScene{};
   ID3D11Device3           *mDevice;
