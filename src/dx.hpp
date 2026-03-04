@@ -112,6 +112,8 @@ struct StorageBuffer
   ComPtr<ID3D11ShaderResourceView> view;
 };
 
+#error need a create constant buffer
+
 template<typename T>
 StorageBuffer CreateStorageBuffer(ID3D11Device3 *device, u32 count, std::span<const T> data)
 {
