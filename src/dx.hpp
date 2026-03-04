@@ -9,6 +9,7 @@
 #include <exception>
 #include <filesystem>
 #include <format>
+#include <numeric>
 #include <span>
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
@@ -147,6 +148,13 @@ StorageBuffer CreateStorageBuffer(ID3D11Device3 *device, u32 count, std::span<co
     .buf  = buffer,
     .view = view,
   };
+}
+
+inline StorageBuffer CreateDrawIDBuffer(ID3D11Device3 *device, u32 count)
+{
+  std::vector<u32> ids(count);
+  std::iota(ids.begin(), ids.end(), 0);
+  return CreateStorageBuffer<u32>(device, count, {ids.begin(), ids.end()});
 }
 
 template<typename T>

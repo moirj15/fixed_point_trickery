@@ -56,7 +56,8 @@ void F32Method::SetScene(const Scene &scene)
     vertexStart += mesh.vertices.size();
     startIndex += mesh.indices.size();
   }
-  mVertBuf = dx::CreateStorageBuffer<ModelVertex>(
+  mDrawIDBuf = dx::CreateDrawIDBuffer(mDevice, mDraws.size());
+  mVertBuf   = dx::CreateStorageBuffer<ModelVertex>(
     mDevice,
     vertices.size(),
     std::span{
@@ -113,8 +114,9 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
   ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
   ctx->VSSetShader(rp.vertexShader, nullptr, 0);
-  ctx->VSSetShaderResources(0, 1, mVertBuf.view.GetAddressOf());
-  ctx->VSSetShaderResources(1, 1, mPerMeshDataBuf.view.GetAddressOf());
+  ctx->VSSetShaderResources(1, 1, mDrawIDBuf.view.GetAddressOf());
+  ctx->VSSetShaderResources(1, 1, mVertBuf.view.GetAddressOf());
+  ctx->VSSetShaderResources(2, 1, mPerMeshDataBuf.view.GetAddressOf());
   ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
 
   ctx->RSSetState(renderContext.rasterizerState.Get());

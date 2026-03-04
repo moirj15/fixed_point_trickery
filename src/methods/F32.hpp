@@ -22,6 +22,7 @@ class F32Method final
   };
 
   RenderProgramHandle      mShadersHandle;
+  dx::StorageBuffer        mDrawIDBuf;
   dx::StorageBuffer        mVertBuf;
   ComPtr<ID3D11Buffer>     mIndexBuf;
   ComPtr<ID3D11Buffer>     mConstantBuf;
