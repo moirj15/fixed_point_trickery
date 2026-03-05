@@ -17,22 +17,52 @@ struct SceneData
 struct PerMeshData
 {
   glm::mat4 transform{};
-  u32       vertexOffset{};
 };
 
 F32Method::F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
-    mShadersHandle{shaderWatcher.RegisterShader(VERT_PATH, PIXEL_PATH)},
+    mShadersHandle{shaderWatcher.RegisterShader(
+      VERT_PATH,
+      PIXEL_PATH,
+      {
+        {
+          .SemanticName         = "POSITION",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(ModelVertex, position),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+        {
+          .SemanticName         = "NORMAL",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(ModelVertex, normal),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+        {
+          .SemanticName         = "TEXCOORD",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(ModelVertex, textureCoord),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+      })},
     mVertBuf{},
     mIndexBuf{},
     mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
-    mPerMeshDataBuf{},
     mDevice{device}
 {
 }
 
 void F32Method::SetScene(const Scene &scene)
 {
-  mDraws = {};
+  mDraws          = {};
+  mModelConstants = {};
   std::vector<ModelVertex> vertices;
   std::vector<u32>         indices;
 
@@ -57,7 +87,7 @@ void F32Method::SetScene(const Scene &scene)
     startIndex += mesh.indices.size();
   }
   mDrawIDBuf = dx::CreateDrawIDBuffer(mDevice, mDraws.size());
-  mVertBuf   = dx::CreateStorageBuffer<ModelVertex>(
+  mVertBuf   = dx::CreateVertexBuffer<ModelVertex>(
     mDevice,
     vertices.size(),
     std::span{
@@ -73,19 +103,11 @@ void F32Method::SetScene(const Scene &scene)
   std::vector<PerMeshData> perMeshData(mDraws.size());
   for (u32 i = 0; i < perMeshData.size(); i++)
   {
-    perMeshData[i] = {
-      .transform    = scene.model.transforms[i],
-      .vertexOffset = mDraws[i].baseVertex,
+    PerMeshData data{
+      .transform = scene.model.transforms[i],
     };
+    mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
   }
-
-  mPerMeshDataBuf = dx::CreateStorageBuffer<PerMeshData>(
-    mDevice,
-    scene.model.transforms.size(),
-    std::span{
-      perMeshData.begin(),
-      perMeshData.end(),
-    });
 }
 
 void F32Method::Update(
@@ -113,10 +135,11 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
 
   ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+  u32 stride = sizeof(ModelVertex);
+  u32 offset = 0;
+  ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
+  ctx->IASetInputLayout(rp.inputLayout);
   ctx->VSSetShader(rp.vertexShader, nullptr, 0);
-  ctx->VSSetShaderResources(1, 1, mDrawIDBuf.view.GetAddressOf());
-  ctx->VSSetShaderResources(1, 1, mVertBuf.view.GetAddressOf());
-  ctx->VSSetShaderResources(2, 1, mPerMeshDataBuf.view.GetAddressOf());
   ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
 
   ctx->RSSetState(renderContext.rasterizerState.Get());
@@ -128,14 +151,14 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
     renderContext.depthStencilView.Get());
   // for (u32 i = 0; i < mDraws.size(); i++)
   //{
-  static i32 v;
-  ImGui::SliderInt("subModel", &v, 0, mDraws.size() - 1);
-  const DrawOffsets draw = mDraws[v];
-  ImGui::Text("Index Count: %d", draw.indexCount);
-  ImGui::Text("Start Index: %d", draw.startIndex);
-  ImGui::Text("Base Vertex: %d", draw.baseVertex);
-  ctx->DrawIndexedInstanced(draw.indexCount, 1, draw.startIndex, draw.baseVertex, v);
-  //}
+  for (u32 i = 0; i < mDraws.size(); i++)
+  {
+    const DrawOffsets draw = mDraws[i];
+    ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
+    ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
+  }
+  // ctx->DrawIndexedInstanced(draw.indexCount, 1, draw.startIndex, draw.baseVertex, v);
+  // }
 }
 
 } // namespace methods

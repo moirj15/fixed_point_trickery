@@ -54,17 +54,11 @@ struct CompiledVert
   ComPtr<ID3D11InputLayout>  layout;
 };
 
-CompiledVert CompileVert(const std::string &path, ID3D11Device3 *device)
+CompiledVert CompileVert(
+  const std::string                           &path,
+  ID3D11Device3                               *device,
+  const std::vector<D3D11_INPUT_ELEMENT_DESC> &inputDesc)
 {
-  constexpr D3D11_INPUT_ELEMENT_DESC mDrawIDLayoutDesc = {
-    .SemanticName         = "DrawID",
-    .SemanticIndex        = 0,
-    .Format               = DXGI_FORMAT_R32_UINT,
-    .InputSlot            = 0,
-    .AlignedByteOffset    = 0,
-    .InputSlotClass       = D3D11_INPUT_PER_INSTANCE_DATA,
-    .InstanceDataStepRate = 1,
-  };
   ComPtr<ID3DBlob> binary = CompileShader(path, "VSMain", "vs_5_0");
   if (binary == nullptr)
   {
@@ -73,8 +67,8 @@ CompiledVert CompileVert(const std::string &path, ID3D11Device3 *device)
   ComPtr<ID3D11VertexShader> shader;
   ComPtr<ID3D11InputLayout>  layout;
   dx::ThrowIfFailed(device->CreateInputLayout(
-    &mDrawIDLayoutDesc,
-    1,
+    inputDesc.data(),
+    inputDesc.size(),
     binary->GetBufferPointer(),
     binary->GetBufferSize(),
     layout.GetAddressOf()));
@@ -128,13 +122,16 @@ void RecompileIfChanged(WatchPair<T> &shaders, CompFunc compFunc, ID3D11Device3 
 
 } // namespace
 
-RenderProgramHandle
-ShaderWatcher::RegisterShader(const std::string &vertexPath, const std::string &pixelPath)
+RenderProgramHandle ShaderWatcher::RegisterShader(
+  const std::string                           &vertexPath,
+  const std::string                           &pixelPath,
+  const std::vector<D3D11_INPUT_ELEMENT_DESC> &inputDesc)
 {
   RenderProgramHandle handle = mNextRenderProgram;
   mNextRenderProgram++;
   auto           p    = std::filesystem::current_path();
-  ::CompiledVert vert = ::CompileVert(vertexPath, mDevice);
+  ::CompiledVert vert = ::CompileVert(vertexPath, mDevice, inputDesc);
+  mInputDescs.emplace_back(inputDesc);
   mVertexInputLayouts.emplace_back(vert.layout);
   mVertexShaders.Add(
     vertexPath,
@@ -167,7 +164,7 @@ RenderProgram ShaderWatcher::GetRenderProgram(RenderProgramHandle handle)
   ::RecompileIfChanged(
     mVertexShaders,
     [this, handle](const std::string &path, ID3D11Device3 *device) {
-      ::CompiledVert shader       = CompileVert(path, device);
+      ::CompiledVert shader       = CompileVert(path, device, mInputDescs[handle]);
       mVertexInputLayouts[handle] = shader.layout;
       return shader.shader;
     },
@@ -178,6 +175,7 @@ RenderProgram ShaderWatcher::GetRenderProgram(RenderProgramHandle handle)
   return {
     .vertexShader = mVertexShaders.shaders[handle].Get(),
     .pixelShader  = mPixelShaders.shaders[handle].Get(),
+    .inputLayout  = mVertexInputLayouts[handle].Get(),
   };
 }
 

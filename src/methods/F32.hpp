@@ -21,15 +21,15 @@ class F32Method final
     u32 indexCount{};
   };
 
-  RenderProgramHandle      mShadersHandle;
-  dx::StorageBuffer        mDrawIDBuf;
-  dx::StorageBuffer        mVertBuf;
-  ComPtr<ID3D11Buffer>     mIndexBuf;
-  ComPtr<ID3D11Buffer>     mConstantBuf;
-  dx::StorageBuffer        mPerMeshDataBuf;
-  std::vector<DrawOffsets> mDraws;
-  Scene                    mScene{};
-  ID3D11Device3           *mDevice;
+  RenderProgramHandle               mShadersHandle;
+  dx::StorageBuffer                 mDrawIDBuf;
+  ComPtr<ID3D11Buffer>              mVertBuf;
+  ComPtr<ID3D11Buffer>              mIndexBuf;
+  ComPtr<ID3D11Buffer>              mConstantBuf;
+  std::vector<DrawOffsets>          mDraws;
+  std::vector<ComPtr<ID3D11Buffer>> mModelConstants;
+  Scene                             mScene{};
+  ID3D11Device3                    *mDevice;
 
 public:
   explicit F32Method(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);

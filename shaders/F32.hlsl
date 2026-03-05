@@ -5,7 +5,7 @@ struct SceneData
   float4x4 modelView;
 };
 
-cbuffer Constants : register(c0)
+cbuffer Constants : register(b0)
 {
   SceneData sceneData;
 };
@@ -13,10 +13,9 @@ cbuffer Constants : register(c0)
 struct PerMesh
 {
   float4x4 transform;
-  uint     vertexOffset;
 };
 
-cbuffer Constants : register(c1)
+cbuffer Constants : register(b1)
 {
   PerMesh perMesh;
 };
@@ -27,11 +26,6 @@ struct Vertex
   float3 normal : NORMAL;
   float2 textureCoord : TEXCOORD;
 };
-
-
-StructuredBuffer<uint> drawIDs : register(t0);
-StructuredBuffer<Vertex> vertices : register(t1);
-StructuredBuffer<PerMesh> perMeshData : register(t2);
 
 struct VSOut
 {
