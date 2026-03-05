@@ -121,7 +121,7 @@ void F32Method::Update(
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
   SceneData data{
     .modelView =
-      glm::mat4{cameraProjection /** glm::translate(glm::identity<glm::dmat4>(), modelPos)*/},
+      glm::mat4{cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos)},
   };
   // SceneData data{glm::mat4(1.0f), glm::vec3(1.0)};
   memcpy(mapped.pData, (void *)&data, sizeof(SceneData));

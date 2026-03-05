@@ -6,8 +6,6 @@
 #include "utils.hpp"
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
-#include <Windows.h>
 #include <array>
 #include <cassert>
 #include <glm/glm.hpp>
@@ -97,7 +95,9 @@ int main(int argc, char **argv)
   Model       model = LoadModel("models/suzanne.glb");
   Scene       scene{{model}};
   f32Method.SetScene(scene);
-  glm::vec3 modelPos{0.0, 0.0, 0.0};
+  glm::vec3  modelPos{0.0, 0.0, 0.0};
+  glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
+
   while (running)
   {
     lastTime        = currTime;
@@ -140,6 +140,11 @@ int main(int argc, char **argv)
 
     ImGui::Separator();
     ImGui::InputFloat3("model position", glm::value_ptr(modelPos));
+
+    ImGui::Text(
+      "Camera distance from Model: %lf meters",
+      glm::length(glm::dvec3{arcballCamera.eye()} - glm::dvec3{modelPos}));
+    ImGui::Text("Model distance from Origin: %lf meters", glm::length(glm::dvec3{modelPos}));
 
     SDL_PumpEvents();
     i32       x{}, y{};
