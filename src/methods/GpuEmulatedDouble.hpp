@@ -1,3 +1,5 @@
+
+
 #pragma once
 
 #include "../dx.hpp"
@@ -12,10 +14,10 @@ struct RenderContext;
 namespace methods
 {
 
-class CpuDoubleMethod final
+class GpuEmulatedDoubleMethod final
 {
 public:
-  explicit CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
+  explicit GpuEmulatedDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
 
   void SetScene(const Scene &scene);
 
@@ -24,5 +26,6 @@ public:
 
   void Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher);
 };
+
 
 } // namespace methods

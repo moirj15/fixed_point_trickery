@@ -1,3 +1,5 @@
+
+
 #pragma once
 
 #include "../dx.hpp"
@@ -12,10 +14,10 @@ struct RenderContext;
 namespace methods
 {
 
-class CpuDoubleMethod final
+class Parallax final
 {
 public:
-  explicit CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
+  explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
 
   void SetScene(const Scene &scene);
 

@@ -4,6 +4,7 @@ project(fixed_point_trickery LANGUAGES CXX)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
+
 find_package(SDL2 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
@@ -30,6 +31,12 @@ add_executable(fixed_point_trickery
   src/methods/CpuDouble.cpp
   src/methods/F32.hpp
   src/methods/F32.cpp
+  src/methods/GpuDouble.hpp
+  src/methods/GpuDouble.cpp
+  src/methods/GpuEmulatedDouble.hpp
+  src/methods/GpuEmulatedDouble.cpp
+  src/methods/Parallax.hpp
+  src/methods/Parallax.cpp
 )
 
 include(cmake/CompilerWarnings.cmake)
