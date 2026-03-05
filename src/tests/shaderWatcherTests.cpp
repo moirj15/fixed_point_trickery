@@ -48,7 +48,7 @@ public:
 
 TEST_CASE_METHOD(ShaderWatcherFixture, "Compile fresh vert and pixel shader")
 {
-  REQUIRE_NOTHROW((void)watcher->RegisterShader(VERTEX_PATH, PIXEL_PATH));
+  REQUIRE_NOTHROW((void)watcher->RegisterShader(VERTEX_PATH, PIXEL_PATH, {}));
 }
 
 TEST_CASE_METHOD(ShaderWatcherFixture, "Compile fresh compute shader")
@@ -58,7 +58,7 @@ TEST_CASE_METHOD(ShaderWatcherFixture, "Compile fresh compute shader")
 
 TEST_CASE_METHOD(ShaderWatcherFixture, "Recompile after vert shader file modified")
 {
-  const RenderProgramHandle h = watcher->RegisterShader(VERTEX_PATH, PIXEL_PATH);
+  const RenderProgramHandle h = watcher->RegisterShader(VERTEX_PATH, PIXEL_PATH, {});
 
   RenderProgram rp = watcher->GetRenderProgram(h);
   std::filesystem::last_write_time(
@@ -71,7 +71,7 @@ TEST_CASE_METHOD(ShaderWatcherFixture, "Recompile after vert shader file modifie
 
 TEST_CASE_METHOD(ShaderWatcherFixture, "Recompile after pixel shader file modified")
 {
-  const RenderProgramHandle h = watcher->RegisterShader(VERTEX_PATH, PIXEL_PATH);
+  const RenderProgramHandle h = watcher->RegisterShader(VERTEX_PATH, PIXEL_PATH, {});
 
   RenderProgram rp = watcher->GetRenderProgram(h);
   std::filesystem::last_write_time(
@@ -96,7 +96,7 @@ TEST_CASE_METHOD(ShaderWatcherFixture, "Recompile after compute shader file modi
 
 TEST_CASE_METHOD(ShaderWatcherFixture, "No recompilation after accessing same render program")
 {
-  const RenderProgramHandle h   = watcher->RegisterShader(VERTEX_PATH, PIXEL_PATH);
+  const RenderProgramHandle h   = watcher->RegisterShader(VERTEX_PATH, PIXEL_PATH, {});
   const RenderProgram       rp  = watcher->GetRenderProgram(h);
   const RenderProgram       rp2 = watcher->GetRenderProgram(h);
   REQUIRE(rp.vertexShader == rp2.vertexShader);
@@ -115,17 +115,17 @@ TEST_CASE_METHOD(ShaderWatcherFixture, "Throw when shader type missmatch")
 {
   SECTION("vertex - pixel missmatch")
   {
-    REQUIRE_THROWS((void)watcher->RegisterShader(PIXEL_PATH, VERTEX_PATH));
+    REQUIRE_THROWS((void)watcher->RegisterShader(PIXEL_PATH, VERTEX_PATH, {}));
   }
 
   SECTION("compute - vertex missmatch")
   {
-    REQUIRE_THROWS((void)watcher->RegisterShader(COMPUTE_PATH, PIXEL_PATH));
+    REQUIRE_THROWS((void)watcher->RegisterShader(COMPUTE_PATH, PIXEL_PATH, {}));
   }
 
   SECTION("compute - pixel missmatch")
   {
-    REQUIRE_THROWS((void)watcher->RegisterShader(VERTEX_PATH, COMPUTE_PATH));
+    REQUIRE_THROWS((void)watcher->RegisterShader(VERTEX_PATH, COMPUTE_PATH, {}));
   }
 
   SECTION("vertex - compute missmatch")

@@ -2,10 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 
 project(fixed_point_trickery LANGUAGES CXX)
 
-message("prefix ${CMAKE_PREFIX_PATH}")
 include_directories(${CMAKE_SOURCE_DIR}/src)
-message("MEEEEE")
-message(${CMAKE_TOOLCHAIN_FILE})
 
 find_package(SDL2 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -13,57 +10,6 @@ find_package(imgui CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
 find_package(directxtk CONFIG REQUIRED)
-find_path(PLF_COLONY_INCLUDE_DIRS "plf_colony.h")
-
-
-find_program(SLANGC slangc HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
-
-set(VERTEX_SOURCES
-  ${PROJECT_SOURCE_DIR}/shaders/colored_triangle.slang
-  ${PROJECT_SOURCE_DIR}/shaders/colored_normals.slang
-)
-
-set(PIXEL_SOURCES
-  ${PROJECT_SOURCE_DIR}/shaders/colored_triangle.slang
-  ${PROJECT_SOURCE_DIR}/shaders/colored_normals.slang
-)
-
-#TODO: get shaders compiling again
-#foreach (SHADER ${VERTEX_SOURCES})
-#  message(STATUS "BUILDING SHADER")
-#  get_filename_component(FILE_NAME ${SHADER} NAME)
-#  set(DXBC "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.vert.dxbc")
-#  set(ARGS ${SHADER} -profile sm_5_0 -target dxbc -entry "VSMain" -o ${DXBC})
-#  message(STATUS ${SHADER})
-#  message(STATUS COMMAND "${SLANGC} ${ARGS}")
-#  add_custom_command(
-#    OUTPUT ${DXBC}
-#    COMMAND ${SLANGC} ${ARGS}
-#    DEPENDS ${SHADER} ${PROJECT_SOURCE_DIR}/shaders)
-#
-#  list(APPEND DXBC_BINARY_FILES ${DXBC})
-#endforeach (SHADER)
-#
-#foreach (SHADER ${PIXEL_SOURCES})
-#  message(STATUS "BUILDING SHADER")
-#  get_filename_component(FILE_NAME ${SHADER} NAME)
-#  set(DXBC "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.pix.dxbc")
-#  set(ARGS ${SHADER} -profile sm_5_0 -target dxbc -entry "PSMain" -o ${DXBC})
-#  message(STATUS ${SHADER})
-#  message(STATUS COMMAND "${SLANGC} ${ARGS}")
-#  add_custom_command(
-#    OUTPUT ${DXBC}
-#    COMMAND ${SLANGC} ${ARGS}
-#    DEPENDS ${SHADER} ${PROJECT_SOURCE_DIR}/shaders)
-#  list(APPEND DXBC_BINARY_FILES ${DXBC})
-#endforeach (SHADER)
-#
-#
-#add_custom_target(
-#  Shaders ALL
-#  DEPENDS ${DXBC_BINARY_FILES}
-#)
-
 
 add_executable(fixed_point_trickery
   src/main.cpp
@@ -74,6 +20,11 @@ add_executable(fixed_point_trickery
   src/scene.hpp
   src/shaderWatcher.hpp
   src/shaderWatcher.cpp
+  src/modelLoader.hpp
+  src/modelLoader.cpp
+  src/arcball_camera.h
+  src/arcball_camera.cpp
+
 
   src/methods/CpuDouble.hpp
   src/methods/CpuDouble.cpp

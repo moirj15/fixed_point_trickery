@@ -2,21 +2,30 @@
 
 struct SceneData
 {
-  float4x4 mvp;
-  float3 color;
+  float4x4 modelView;
 };
 
-cbuffer Constants
+cbuffer Constants : register(b0)
 {
   SceneData sceneData;
 };
 
-struct Vertex
+struct PerMesh
 {
-  float3 pos;
+  float4x4 transform;
 };
 
-StructuredBuffer<Vertex> vertices;
+cbuffer Constants : register(b1)
+{
+  PerMesh perMesh;
+};
+
+struct Vertex
+{
+  float3 pos : POSITION;
+  float3 normal : NORMAL;
+  float2 textureCoord : TEXCOORD;
+};
 
 struct VSOut
 {
@@ -24,10 +33,9 @@ struct VSOut
   float3 color : COLOR;
 };
 
-VSOut VSMain(uint vertexID: SV_VertexID)
+VSOut VSMain(Vertex vertex)
 {
-  const float3 colors[] =
-  {
+  const float3 colors[] = {
     float3(0.0, 0.0, 0.0),
     float3(1.0, 0.0, 0.0),
     float3(0.0, 1.0, 0.0),
@@ -37,9 +45,15 @@ VSOut VSMain(uint vertexID: SV_VertexID)
     float3(0.0, 1.0, 1.0),
     float3(1.0, 1.0, 1.0),
   };
-  VSOut ret;
-  ret.pos = mul(sceneData.mvp, float4(vertices[vertexID].pos, 1.0f));
-  ret.color = colors[vertexID % 8];
+  VSOut ret = (VSOut)0;
+
+
+  // uint index = vertexID + 838;
+  float4x4 mvp = mul(sceneData.modelView, perMesh.transform);
+  ret.pos      = mul(mvp, float4(vertex.pos, 1.0f));
+  // ret.pos = float4(vertices[vertexID].pos, 1.0f);
+  // ret.color = colors[vertexID % 8];
+  ret.color = (vertex.normal + 1.0) / 2.0;
   return ret;
 }
 

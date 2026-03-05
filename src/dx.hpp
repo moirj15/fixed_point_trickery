@@ -9,6 +9,7 @@
 #include <exception>
 #include <filesystem>
 #include <format>
+#include <numeric>
 #include <span>
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
@@ -105,57 +106,62 @@ struct RenderPipeline
 RenderPipeline
 CreatePipeline(std::string_view vertexPath, std::string_view pixelPath, ID3D11Device3 *device);
 
-struct VertexBuffer
+struct StorageBuffer
 {
   ComPtr<ID3D11Buffer>             buf;
   ComPtr<ID3D11ShaderResourceView> view;
 };
 
 template<typename T>
-VertexBuffer
-CreateVertexBuffer(ID3D11Device3 *device, u32 size, u32 stride, std::span<const T> data)
+StorageBuffer CreateStorageBuffer(ID3D11Device3 *device, u32 count, std::span<const T> data)
 {
-  assert(size % stride == 0);
   D3D11_BUFFER_DESC desc = {
-    .ByteWidth           = size,
+    .ByteWidth           = count * GpuSizeof<T>(),
     .Usage               = D3D11_USAGE_DYNAMIC,
     .BindFlags           = D3D11_BIND_SHADER_RESOURCE,
     .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
     .MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
-    .StructureByteStride = stride,
+    .StructureByteStride = GpuSizeof<T>(),
   };
 
-  ID3D11Buffer *vertexBuffer{};
+  ID3D11Buffer *buffer{};
   if (data.empty())
   {
-    dx::ThrowIfFailed(device->CreateBuffer(&desc, nullptr, &vertexBuffer));
+    dx::ThrowIfFailed(device->CreateBuffer(&desc, nullptr, &buffer));
   }
   else
   {
     D3D11_SUBRESOURCE_DATA d{};
     d.pSysMem = data.data();
-    dx::ThrowIfFailed(device->CreateBuffer(&desc, &d, &vertexBuffer));
+    dx::ThrowIfFailed(device->CreateBuffer(&desc, &d, &buffer));
   }
 
   ID3D11ShaderResourceView       *view{};
   D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
   viewDesc.Format              = DXGI_FORMAT_UNKNOWN;
   viewDesc.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
-  viewDesc.Buffer.ElementWidth = size / stride;
+  viewDesc.Buffer.ElementWidth = count;
 
-  dx::ThrowIfFailed(device->CreateShaderResourceView(vertexBuffer, &viewDesc, &view));
+  dx::ThrowIfFailed(device->CreateShaderResourceView(buffer, &viewDesc, &view));
 
   return {
-    .buf  = vertexBuffer,
+    .buf  = buffer,
     .view = view,
   };
+}
+
+inline StorageBuffer CreateDrawIDBuffer(ID3D11Device3 *device, u32 count)
+{
+  std::vector<u32> ids(count);
+  std::iota(ids.begin(), ids.end(), 0);
+  return CreateStorageBuffer<u32>(device, count, {ids.begin(), ids.end()});
 }
 
 template<typename T>
 ComPtr<ID3D11Buffer> CreateIndexBuffer(ID3D11Device3 *device, u32 size, std::span<const T> data)
 {
   D3D11_BUFFER_DESC desc = {
-    .ByteWidth           = size,
+    .ByteWidth           = size * GpuSizeof<T>(),
     .Usage               = D3D11_USAGE_DYNAMIC,
     .BindFlags           = D3D11_BIND_INDEX_BUFFER,
     .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
@@ -206,4 +212,32 @@ ComPtr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device3 *device, const T *data)
 
   return constantBuffer;
 }
+
+template<typename T>
+ComPtr<ID3D11Buffer> CreateVertexBuffer(ID3D11Device3 *device, u32 count, std::span<const T> data)
+{
+  D3D11_BUFFER_DESC desc = {
+    .ByteWidth           = count * GpuSizeof<T>(),
+    .Usage               = D3D11_USAGE_DEFAULT,
+    .BindFlags           = D3D11_BIND_VERTEX_BUFFER,
+    .CPUAccessFlags      = 0,
+    .MiscFlags           = 0,
+    .StructureByteStride = 0,
+  };
+
+  ID3D11Buffer *buffer{};
+  if (data.empty())
+  {
+    dx::ThrowIfFailed(device->CreateBuffer(&desc, nullptr, &buffer));
+  }
+  else
+  {
+    D3D11_SUBRESOURCE_DATA d{};
+    d.pSysMem = data.data();
+    dx::ThrowIfFailed(device->CreateBuffer(&desc, &d, &buffer));
+  }
+
+  return buffer;
+}
+
 } // namespace dx
