@@ -31,7 +31,7 @@ class CpuDoubleMethod final
   std::vector<DrawOffsets> mDraws;
 
   std::vector<std::vector<ModelVertex>> mMeshes;
-  u32                                   mTotalSize;
+  u32                                   mTotalSize{};
 
   Scene          mScene{};
   ID3D11Device3 *mDevice;

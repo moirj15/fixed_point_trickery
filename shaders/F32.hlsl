@@ -1,5 +1,3 @@
-
-
 struct SceneData
 {
   float4x4 mvp;
@@ -35,16 +33,6 @@ struct VSOut
 
 VSOut VSMain(Vertex vertex)
 {
-  const float3 colors[] = {
-    float3(0.0, 0.0, 0.0),
-    float3(1.0, 0.0, 0.0),
-    float3(0.0, 1.0, 0.0),
-    float3(0.0, 0.0, 1.0),
-    float3(1.0, 1.0, 0.0),
-    float3(1.0, 0.0, 1.0),
-    float3(0.0, 1.0, 1.0),
-    float3(1.0, 1.0, 1.0),
-  };
   VSOut ret = (VSOut)0;
 
 

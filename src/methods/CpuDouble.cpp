@@ -7,6 +7,15 @@
 namespace methods
 {
 
+struct CpuDoubleVertex
+{
+  glm::vec4 position{};
+  glm::vec3 normal{};
+  glm::vec2 textureCoord{};
+};
+
+using VertexFormat = CpuDoubleVertex;
+
 CpuDoubleMethod::CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     mShadersHandle{shaderWatcher.RegisterShader(
       VERT_PATH,
@@ -15,9 +24,9 @@ CpuDoubleMethod::CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWat
         {
           .SemanticName         = "POSITION",
           .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
+          .Format               = DXGI_FORMAT_R32G32B32A32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(ModelVertex, position),
+          .AlignedByteOffset    = offsetof(VertexFormat, position),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -26,7 +35,7 @@ CpuDoubleMethod::CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWat
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(ModelVertex, normal),
+          .AlignedByteOffset    = offsetof(VertexFormat, normal),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -35,7 +44,7 @@ CpuDoubleMethod::CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWat
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(ModelVertex, textureCoord),
+          .AlignedByteOffset    = offsetof(VertexFormat, textureCoord),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -47,9 +56,11 @@ CpuDoubleMethod::CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWat
 void CpuDoubleMethod::SetScene(const Scene &scene)
 {
   mScene = scene;
+  mDraws = {};
   std::vector<u32> indices;
   u32              vertexStart = 0;
   u32              startIndex  = 0;
+  u32              totalSize   = 0;
   for (auto &mesh : scene.model.parts)
   {
     for (auto &index : mesh.indices)
@@ -63,13 +74,14 @@ void CpuDoubleMethod::SetScene(const Scene &scene)
     });
     vertexStart += mesh.vertices.size();
     startIndex += mesh.indices.size();
+    mTotalSize += mesh.vertices.size();
   }
   mIndexBuf = dx::CreateIndexBuffer<uint32_t>(
     mDevice,
     indices.size(),
     std::span<uint32_t>{indices.begin(), indices.end()});
 
-  mTransformedVertBuf = dx::CreateVertexBuffer<ModelVertex>(mDevice, mVertices.size(), {}, true);
+  mTransformedVertBuf = dx::CreateVertexBuffer<VertexFormat>(mDevice, mTotalSize, {}, true);
 }
 
 void CpuDoubleMethod::Update(
@@ -83,7 +95,7 @@ void CpuDoubleMethod::Update(
   dx::ThrowIfFailed(
     ctx->Map(mTransformedVertBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
 
-  std::span<ModelVertex> gpuVertices = {reinterpret_cast<ModelVertex *>(mapped.pData), mTotalSize};
+  std::span gpuVertices = {reinterpret_cast<VertexFormat *>(mapped.pData), mTotalSize};
 
   size_t gpuIndex = 0;
   for (size_t meshIndex = 0; meshIndex < mScene.model.parts.size(); meshIndex++)
@@ -94,12 +106,12 @@ void CpuDoubleMethod::Update(
     for (const auto &vertex : mesh.vertices)
     {
       // TODO: should be better to have a seperate buffer for the positions
-      gpuVertices[meshIndex] = {
+      gpuVertices[gpuIndex] = {
         .position     = transform * glm::dvec4{vertex.position, 1.0},
         .normal       = vertex.normal,
         .textureCoord = vertex.textureCoord,
       };
-      meshIndex++;
+      gpuIndex++;
     }
   }
   ctx->Unmap(mTransformedVertBuf.Get(), 0);
@@ -107,6 +119,29 @@ void CpuDoubleMethod::Update(
 
 void CpuDoubleMethod::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher)
 {
+  RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
+  ID3D11DeviceContext *ctx = renderContext.DeviceContext();
+
+  ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+  u32 stride = sizeof(VertexFormat);
+  u32 offset = 0;
+  ctx->IASetVertexBuffers(0, 1, mTransformedVertBuf.GetAddressOf(), &stride, &offset);
+  ctx->IASetInputLayout(rp.inputLayout);
+  ctx->VSSetShader(rp.vertexShader, nullptr, 0);
+
+  ctx->RSSetState(renderContext.rasterizerState.Get());
+
+  ctx->PSSetShader(rp.pixelShader, nullptr, 0);
+  ctx->OMSetRenderTargets(
+    1,
+    renderContext.backbufferRTV.GetAddressOf(),
+    renderContext.depthStencilView.Get());
+  for (u32 i = 0; i < mDraws.size(); i++)
+  {
+    const DrawOffsets draw = mDraws[i];
+    ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
+  }
 }
 
 } // namespace methods

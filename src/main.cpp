@@ -1,5 +1,6 @@
 #include "arcball_camera.h"
 #include "dx.hpp"
+#include "methods/CpuDouble.hpp"
 #include "methods/F32.hpp"
 #include "modelLoader.hpp"
 #include "shaderWatcher.hpp"
@@ -20,6 +21,7 @@ constexpr u32 HEIGHT = 1080;
 enum class Method
 {
   F32,
+  CpuDouble,
 };
 
 template<typename T>
@@ -61,8 +63,6 @@ int main(int argc, char **argv)
 
   f32 clearColor[] = {0.5, 0.5, 0.5, 1.0};
 
-  // Model         model = LoadModel("models/jwst.glb");
-  // Scene         scene{{model}};
   ShaderWatcher shaderWatcher{ctx.Device()};
 
   glm::dmat4    projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
@@ -70,8 +70,6 @@ int main(int argc, char **argv)
     glm::dvec3{0.0, 0.0, 5.0},
     glm::dvec3{0.0, 0.0, -1.0},
     glm::dvec3{0.0, 1.0, 0.0}};
-
-  methods::F32Method f32Method{ctx.Device(), shaderWatcher};
 
   SDL_Event e;
   bool      running       = true;
@@ -94,7 +92,12 @@ int main(int argc, char **argv)
   std::string currentModelPath;
   Model       model = LoadModel("models/suzanne.glb");
   Scene       scene{{model}};
+
+  methods::F32Method       f32Method{ctx.Device(), shaderWatcher};
+  methods::CpuDoubleMethod cpuDoubleMethod{ctx.Device(), shaderWatcher};
   f32Method.SetScene(scene);
+  cpuDoubleMethod.SetScene(scene);
+
   glm::vec3  modelPos{0.0, 0.0, 0.0};
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
 
@@ -121,6 +124,10 @@ int main(int argc, char **argv)
     {
       method = Method::F32;
     }
+    else if (ImGui::RadioButton("CPU Double Method", method == Method::CpuDouble))
+    {
+      method = Method::CpuDouble;
+    }
 
     ImGui::Separator();
 
@@ -135,6 +142,7 @@ int main(int argc, char **argv)
         model = LoadModel(currentModelPath);
         scene = {{model}};
         f32Method.SetScene(scene);
+        cpuDoubleMethod.SetScene(scene);
       }
     }
 
@@ -196,14 +204,29 @@ int main(int argc, char **argv)
       }
     }
     arcballCamera.rotate(ToNDC(lastMouseX, lastMouseY), ToNDC(currMouseX, currMouseY));
-    f32Method.Update(
-      ctx.DeviceContext(),
-      projection * glm::dmat4{arcballCamera.transform()},
-      glm::dvec3{modelPos});
 
     ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
-    f32Method.Draw(ctx, shaderWatcher);
+
+    switch (method)
+    {
+    case Method::F32:
+      f32Method.Update(
+        ctx.DeviceContext(),
+        projection * glm::dmat4{arcballCamera.transform()},
+        glm::dvec3{modelPos});
+      f32Method.Draw(ctx, shaderWatcher);
+      break;
+    case Method::CpuDouble:
+      cpuDoubleMethod.Update(
+        ctx.DeviceContext(),
+        projection * glm::dmat4{arcballCamera.transform()},
+        glm::dvec3{modelPos});
+      cpuDoubleMethod.Draw(ctx, shaderWatcher);
+      break;
+    default:
+      assert(0);
+    }
 
     ImGui::End();
 
