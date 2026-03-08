@@ -214,16 +214,35 @@ ComPtr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device3 *device, const T *data)
 }
 
 template<typename T>
-ComPtr<ID3D11Buffer> CreateVertexBuffer(ID3D11Device3 *device, u32 count, std::span<const T> data)
+ComPtr<ID3D11Buffer> CreateVertexBuffer(
+  ID3D11Device3     *device,
+  u32                count,
+  std::span<const T> data,
+  bool               cpuUpdate = false)
 {
-  D3D11_BUFFER_DESC desc = {
-    .ByteWidth           = count * GpuSizeof<T>(),
-    .Usage               = D3D11_USAGE_DEFAULT,
-    .BindFlags           = D3D11_BIND_VERTEX_BUFFER,
-    .CPUAccessFlags      = 0,
-    .MiscFlags           = 0,
-    .StructureByteStride = 0,
-  };
+  D3D11_BUFFER_DESC desc{};
+  if (cpuUpdate)
+  {
+    desc = {
+      .ByteWidth           = count * GpuSizeof<T>(),
+      .Usage               = D3D11_USAGE_DYNAMIC,
+      .BindFlags           = D3D11_BIND_VERTEX_BUFFER,
+      .CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE,
+      .MiscFlags           = 0,
+      .StructureByteStride = 0,
+    };
+  }
+  else
+  {
+    desc = {
+      .ByteWidth           = count * GpuSizeof<T>(),
+      .Usage               = D3D11_USAGE_DEFAULT,
+      .BindFlags           = D3D11_BIND_VERTEX_BUFFER,
+      .CPUAccessFlags      = 0,
+      .MiscFlags           = 0,
+      .StructureByteStride = 0,
+    };
+  }
 
   ID3D11Buffer *buffer{};
   if (data.empty())

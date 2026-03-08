@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../dx.hpp"
+#include "../scene.hpp"
 #include "../shaderWatcher.hpp"
 
 #include <glm/mat4x4.hpp>
@@ -14,6 +15,27 @@ namespace methods
 
 class CpuDoubleMethod final
 {
+  const std::string VERT_PATH  = "shaders/CpuDouble.hlsl";
+  const std::string PIXEL_PATH = "shaders/CpuDouble.hlsl";
+
+  struct DrawOffsets
+  {
+    u32 startIndex{};
+    u32 baseVertex{};
+    u32 indexCount{};
+  };
+
+  RenderProgramHandle      mShadersHandle;
+  ComPtr<ID3D11Buffer>     mTransformedVertBuf;
+  ComPtr<ID3D11Buffer>     mIndexBuf;
+  std::vector<DrawOffsets> mDraws;
+
+  std::vector<std::vector<ModelVertex>> mMeshes;
+  u32                                   mTotalSize{};
+
+  Scene          mScene{};
+  ID3D11Device3 *mDevice;
+
 public:
   explicit CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
 
