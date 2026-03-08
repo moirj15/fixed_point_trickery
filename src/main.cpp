@@ -2,6 +2,7 @@
 #include "dx.hpp"
 #include "methods/CpuDouble.hpp"
 #include "methods/F32.hpp"
+#include "methods/GpuDouble.hpp"
 #include "modelLoader.hpp"
 #include "shaderWatcher.hpp"
 #include "utils.hpp"
@@ -22,6 +23,7 @@ enum class Method
 {
   F32,
   CpuDouble,
+  GpuDouble,
 };
 
 template<typename T>
@@ -95,6 +97,7 @@ int main(int argc, char **argv)
 
   methods::F32Method       f32Method{ctx.Device(), shaderWatcher};
   methods::CpuDoubleMethod cpuDoubleMethod{ctx.Device(), shaderWatcher};
+  methods::GpuDoubleMethod gpuDoubleMethod{ctx.Device(), shaderWatcher};
   f32Method.SetScene(scene);
   cpuDoubleMethod.SetScene(scene);
 
@@ -128,6 +131,10 @@ int main(int argc, char **argv)
     {
       method = Method::CpuDouble;
     }
+    else if (ImGui::RadioButton("GPU Double Method", method == Method::GpuDouble))
+    {
+      method = Method::GpuDouble;
+    }
 
     ImGui::Separator();
 
@@ -143,6 +150,7 @@ int main(int argc, char **argv)
         scene = {{model}};
         f32Method.SetScene(scene);
         cpuDoubleMethod.SetScene(scene);
+        gpuDoubleMethod.SetScene(scene);
       }
     }
 
@@ -223,6 +231,13 @@ int main(int argc, char **argv)
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
       cpuDoubleMethod.Draw(ctx, shaderWatcher);
+      break;
+    case Method::GpuDouble:
+      gpuDoubleMethod.Update(
+        ctx.DeviceContext(),
+        projection * glm::dmat4{arcballCamera.transform()},
+        glm::dvec3{modelPos});
+      gpuDoubleMethod.Draw(ctx, shaderWatcher);
       break;
     default:
       assert(0);

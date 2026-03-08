@@ -2,6 +2,7 @@
 #pragma once
 
 #include "../dx.hpp"
+#include "../scene.hpp"
 #include "../shaderWatcher.hpp"
 
 #include <glm/mat4x4.hpp>
@@ -15,6 +16,26 @@ namespace methods
 
 class GpuDoubleMethod final
 {
+  const std::string VERT_PATH  = "shaders/GpuDouble.hlsl";
+  const std::string PIXEL_PATH = "shaders/GpuDouble.hlsl";
+
+  struct DrawOffsets
+  {
+    u32 startIndex{};
+    u32 baseVertex{};
+    u32 indexCount{};
+  };
+
+  RenderProgramHandle               mShadersHandle;
+  dx::StorageBuffer                 mDrawIDBuf;
+  ComPtr<ID3D11Buffer>              mVertBuf;
+  ComPtr<ID3D11Buffer>              mIndexBuf;
+  ComPtr<ID3D11Buffer>              mConstantBuf;
+  std::vector<DrawOffsets>          mDraws;
+  std::vector<ComPtr<ID3D11Buffer>> mModelConstants;
+  Scene                             mScene{};
+  ID3D11Device3                    *mDevice;
+
 public:
   explicit GpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
 
