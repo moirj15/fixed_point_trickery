@@ -92,8 +92,7 @@ void CpuDoubleMethod::Update(
   const glm::dmat4 mvp = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos);
   D3D11_MAPPED_SUBRESOURCE mapped{};
 
-  dx::ThrowIfFailed(
-    ctx->Map(mTransformedVertBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
+  dx::ThrowIfFailed(ctx->Map(mTransformedVertBuf.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped));
 
   std::span gpuVertices = {reinterpret_cast<VertexFormat *>(mapped.pData), mTotalSize};
 
