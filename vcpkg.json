@@ -1,7 +1,7 @@
 {
   "name": "fixed-point-trickery",
   "version": "0.0",
-  "builtin-baseline": "50c0cb48a0cf2f6fc5c7b2c0d2bafbe26d0a7ca2",
+  "builtin-baseline": "62159a45e18f3a9ac0548628dcaf74fcb60c6ff9",
   "dependencies": [
     "assimp",
     "catch2",

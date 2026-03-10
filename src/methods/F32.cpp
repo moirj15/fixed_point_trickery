@@ -1,7 +1,5 @@
 #include "F32.hpp"
 
-#include "CpuDouble.hpp"
-
 #include <array>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
@@ -123,10 +121,7 @@ void F32Method::Update(
     .modelView =
       glm::mat4{cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos)},
   };
-  // SceneData data{glm::mat4(1.0f), glm::vec3(1.0)};
   memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
-  // glm::mat4 mvp{cameraProjection};
-  // memcpy(mapped.pData, glm::value_ptr(mvp), sizeof(glm::mat4));
   ctx->Unmap(mConstantBuf.Get(), 0);
 }
 
@@ -151,16 +146,12 @@ void F32Method::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatc
     1,
     renderContext.backbufferRTV.GetAddressOf(),
     renderContext.depthStencilView.Get());
-  // for (u32 i = 0; i < mDraws.size(); i++)
-  //{
   for (u32 i = 0; i < mDraws.size(); i++)
   {
     const DrawOffsets draw = mDraws[i];
     ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
     ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
   }
-  // ctx->DrawIndexedInstanced(draw.indexCount, 1, draw.startIndex, draw.baseVertex, v);
-  // }
 }
 
 } // namespace methods
