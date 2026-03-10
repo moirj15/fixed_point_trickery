@@ -100,6 +100,7 @@ int main(int argc, char **argv)
   methods::GpuDoubleMethod gpuDoubleMethod{ctx.Device(), shaderWatcher};
   f32Method.SetScene(scene);
   cpuDoubleMethod.SetScene(scene);
+  gpuDoubleMethod.SetScene(scene);
 
   glm::vec3  modelPos{0.0, 0.0, 0.0};
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();

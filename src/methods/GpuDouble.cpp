@@ -19,7 +19,8 @@ struct PerMeshData
 
 struct GpuDoubleVertex
 {
-  glm::dvec3 position{};
+  glm::uvec3 low{};
+  glm::uvec3 high{};
   glm::vec3  normal{};
   glm::vec2  textureCoord{};
 };
@@ -32,20 +33,20 @@ GpuDoubleMethod::GpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWat
       PIXEL_PATH,
       {
         {
-          .SemanticName         = "POSITION",
+          .SemanticName         = "POSITION_LOW",
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32B32_UINT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, position),
+          .AlignedByteOffset    = offsetof(VertexFormat, low),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
         {
-          .SemanticName         = "POSITION",
-          .SemanticIndex        = 1,
+          .SemanticName         = "POSITION_HIGH",
+          .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32B32_UINT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, position),
+          .AlignedByteOffset    = offsetof(VertexFormat, high),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -82,17 +83,25 @@ void GpuDoubleMethod::SetScene(const Scene &scene)
   std::vector<VertexFormat> vertices;
   std::vector<u32>          indices;
 
-  u32 vertexStart = 0;
-  u32 startIndex  = 0;
+  u32  vertexStart = 0;
+  u32  startIndex  = 0;
+  auto ToUVec3     = [](const glm::dvec3 &v, glm::uvec3 &lo, glm::uvec3 &hi) {
+    for (u32 i = 0; i < 3; i++)
+    {
+      lo[i] = std::bit_cast<u64>(v[i]) & 0xffffffff;
+      hi[i] = std::bit_cast<u64>(v[i]) >> 32;
+    }
+  };
   for (auto &mesh : scene.model.parts)
   {
     for (auto &vertex : mesh.vertices)
     {
-      vertices.push_back({
-        .position     = glm::dvec3{vertex.position},
-        .normal       = vertex.normal,
-        .textureCoord = vertex.textureCoord,
-      });
+      VertexFormat v{};
+
+      ToUVec3(vertex.position, v.low, v.high);
+      v.normal       = vertex.normal;
+      v.textureCoord = vertex.textureCoord;
+      vertices.push_back(v);
     }
     for (auto &index : mesh.indices)
     {
@@ -151,7 +160,7 @@ void GpuDoubleMethod::Draw(dx::RenderContext &renderContext, ShaderWatcher &shad
 
   ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
-  u32 stride = sizeof(ModelVertex);
+  u32 stride = sizeof(VertexFormat);
   u32 offset = 0;
   ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
   ctx->IASetInputLayout(rp.inputLayout);

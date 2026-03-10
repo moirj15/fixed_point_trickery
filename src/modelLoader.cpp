@@ -1,5 +1,7 @@
 #include "modelLoader.hpp"
 
+#include <assimp/BaseImporter.h>
+#include <assimp/Exceptional.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -124,10 +126,11 @@ Model LoadModel(const std::string &path)
   // const std::string MODEL_PATH       = "../../models";
 
   Assimp::Importer importer;
-  auto            *glbImporter = importer.GetImporter("glb");
-  auto             p           = std::filesystem::current_path();
-  auto             e           = std::filesystem::exists(path);
+  // auto            *glbImporter = importer.GetImporter("glb");
+  auto p = std::filesystem::current_path();
+  auto e = std::filesystem::exists(path);
   // Sort by the primitive type so we can skip anything that's not an indexed triangle
+
   const aiScene *scene =
     importer.ReadFile(path, aiProcess_Triangulate | aiProcess_SortByPType | aiProcess_GenUVCoords);
   if (scene == nullptr)

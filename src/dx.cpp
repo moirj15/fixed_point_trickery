@@ -158,6 +158,10 @@ RenderContext InitContext(const Window &window)
 
   context.context->RSSetViewports(1, &viewport);
 
+  D3D11_FEATURE_DATA_D3D11_OPTIONS opt{};
+  ThrowIfFailed(
+    context.Device()->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &opt, sizeof(opt)));
+
   return context;
 }
 

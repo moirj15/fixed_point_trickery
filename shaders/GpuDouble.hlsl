@@ -20,8 +20,8 @@ cbuffer Constants : register(b1)
 
 struct Vertex
 {
-  uint3 posLow : POSITION0;
-  uint3 posHigh: POSITION1;
+  uint3 posLow : POSITION_LOW;
+  uint3 posHigh: POSITION_HIGH;
   float3 normal : NORMAL;
   float2 textureCoord : TEXCOORD;
 };
@@ -43,7 +43,7 @@ VSOut VSMain(Vertex vertex)
   };
 
   double4x4 mvp = mul(sceneData.mvp, perMesh.transform);
-  ret.pos      = float4(mul(mvp, double4(pos, 1.0)));
+  ret.pos = (float4) mul(mvp, double4(pos, 1.0));
   ret.color = (vertex.normal + 1.0) / 2.0;
   return ret;
 }
