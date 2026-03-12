@@ -7,82 +7,44 @@
 namespace methods
 {
 
-struct EmulatedDouble
+void DoubleToED(double d, float &high, float &low)
 {
-  float high{};
-  float low{};
-};
-
-EmulatedDouble DoubleToED(double d)
-{
-  EmulatedDouble ed{};
-  ed.high = static_cast<float>(d);
-  ed.low  = static_cast<float>(d - ed.high);
-  return ed;
+  high = static_cast<float>(d);
+  low  = static_cast<float>(d - high);
 }
 
 struct EmulatedDoubleVec3
 {
-  EmulatedDouble x;
-  EmulatedDouble y;
-  EmulatedDouble z;
+  glm::vec3 high;
+  glm::vec3 low;
 };
 
 EmulatedDoubleVec3 DoubleToED(const glm::dvec3 &d)
 {
-  return {
-    .x = DoubleToED(d.x),
-    .y = DoubleToED(d.y),
-    .z = DoubleToED(d.z),
-  };
+  EmulatedDoubleVec3 v{};
+  DoubleToED(d.x, v.high.x, v.low.x);
+  DoubleToED(d.y, v.high.y, v.low.y);
+  DoubleToED(d.z, v.high.z, v.low.z);
+  return v;
 }
 
 struct EmulatedDoubleMat4
 {
-  EmulatedDouble m00;
-  EmulatedDouble m01;
-  EmulatedDouble m02;
-  EmulatedDouble m03;
-
-  EmulatedDouble m10;
-  EmulatedDouble m11;
-  EmulatedDouble m12;
-  EmulatedDouble m13;
-
-  EmulatedDouble m20;
-  EmulatedDouble m21;
-  EmulatedDouble m22;
-  EmulatedDouble m23;
-
-  EmulatedDouble m30;
-  EmulatedDouble m31;
-  EmulatedDouble m32;
-  EmulatedDouble m33;
+  glm::mat4 high;
+  glm::mat4 low;
 };
 
 EmulatedDoubleMat4 DoubleToED(const glm::dmat4 &d)
 {
-  return {
-    .m00 = DoubleToED(d[0][0]),
-    .m01 = DoubleToED(d[0][1]),
-    .m02 = DoubleToED(d[0][2]),
-    .m03 = DoubleToED(d[0][3]),
-
-    .m10 = DoubleToED(d[1][0]),
-    .m11 = DoubleToED(d[1][1]),
-    .m12 = DoubleToED(d[1][2]),
-    .m13 = DoubleToED(d[1][3]),
-
-    .m20 = DoubleToED(d[2][0]),
-    .m21 = DoubleToED(d[2][1]),
-    .m22 = DoubleToED(d[2][2]),
-    .m23 = DoubleToED(d[2][3]),
-
-    .m30 = DoubleToED(d[3][0]),
-    .m31 = DoubleToED(d[3][1]),
-    .m32 = DoubleToED(d[3][2]),
-    .m33 = DoubleToED(d[3][3]),
-  };
+  EmulatedDoubleMat4 m{};
+  for (u32 x = 0; x < 4; x++)
+  {
+    for (u32 y = 0; y < 4; y++)
+    {
+      DoubleToED(d[x][y], m.high[x][y], m.low[x][y]);
+    }
+  }
+  return m;
 }
 
 struct SceneData
@@ -112,20 +74,20 @@ GpuEmulatedDoubleMethod::GpuEmulatedDoubleMethod(
       PIXEL_PATH,
       {
         {
-          .SemanticName         = "POSITION_LOW",
+          .SemanticName         = "POSITION_HIGH",
           .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32_UINT,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, low),
+          .AlignedByteOffset    = offsetof(VertexFormat, pos),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
         {
-          .SemanticName         = "POSITION_HIGH",
+          .SemanticName         = "POSITION_LOW",
           .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32_UINT,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, high),
+          .AlignedByteOffset    = offsetof(VertexFormat, pos) + sizeof(glm::vec3),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -162,22 +124,15 @@ void GpuEmulatedDoubleMethod::SetScene(const Scene &scene)
   std::vector<VertexFormat> vertices;
   std::vector<u32>          indices;
 
-  u32  vertexStart = 0;
-  u32  startIndex  = 0;
-  auto ToUVec3     = [](const glm::dvec3 &v, glm::uvec3 &lo, glm::uvec3 &hi) {
-    for (u32 i = 0; i < 3; i++)
-    {
-      lo[i] = std::bit_cast<u64>(v[i]) & 0xffffffff;
-      hi[i] = std::bit_cast<u64>(v[i]) >> 32;
-    }
-  };
+  u32 vertexStart = 0;
+  u32 startIndex  = 0;
   for (auto &mesh : scene.model.parts)
   {
     for (auto &vertex : mesh.vertices)
     {
       VertexFormat v{};
 
-      ToUVec3(vertex.position, v.low, v.high);
+      v.pos          = DoubleToED(glm::dvec3{vertex.position});
       v.normal       = vertex.normal;
       v.textureCoord = vertex.textureCoord;
       vertices.push_back(v);
@@ -212,7 +167,7 @@ void GpuEmulatedDoubleMethod::SetScene(const Scene &scene)
   for (u32 i = 0; i < perMeshData.size(); i++)
   {
     PerMeshData data{
-      .transform = scene.model.transforms[i],
+      .transform = DoubleToED(scene.model.transforms[i]),
     };
     mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
   }
@@ -226,7 +181,8 @@ void GpuEmulatedDoubleMethod::Update(
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
   SceneData data{
-    .modelView = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos),
+    .modelView =
+      DoubleToED(cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos)),
   };
   memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
   ctx->Unmap(mConstantBuf.Get(), 0);

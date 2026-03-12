@@ -1,5 +1,5 @@
 float __fmul_rn(float a, float b)
-{ 
+{
   return a * b;
 }
 
@@ -157,9 +157,20 @@ SS dsmul_F3(SS a, SS b)
   return d;
 }
 
+SS dsmul(SS a, SS b)
+{
+  return dsmul_F3(a, b);
+}
+
+SS dsadd(SS a, SS b)
+{
+  return dsadd_F23(a, b);
+}
+
 struct SceneData
 {
-  double4x4 mvp;
+  float4x4 mvpHigh;
+  float4x4 mvpLow;
 };
 
 cbuffer Constants : register(b0)
@@ -169,7 +180,8 @@ cbuffer Constants : register(b0)
 
 struct PerMesh
 {
-  double4x4 transform;
+  float4x4 transformHigh;
+  float4x4 transformLow;
 };
 
 cbuffer Constants : register(b1)
@@ -179,8 +191,8 @@ cbuffer Constants : register(b1)
 
 struct Vertex
 {
-  uint3 posLow : POSITION_LOW;
-  uint3 posHigh: POSITION_HIGH;
+  float3 posHigh : POSITION_HIGH;
+  float3 posLow : POSITION_LOW;
   float3 normal : NORMAL;
   float2 textureCoord : TEXCOORD;
 };
@@ -191,18 +203,101 @@ struct VSOut
   float3 color : COLOR;
 };
 
+struct EmulatedDouble3
+{
+  float3 high;
+  float3 low;
+};
+
+struct EmulatedDouble4
+{
+  float4 high;
+  float4 low;
+};
+
+struct EmulatedDouble4x4
+{
+  float4x4 high;
+  float4x4 low;
+};
+
+EmulatedDouble4x4 EDMul(EmulatedDouble4x4 a, EmulatedDouble4x4 b)
+{
+  EmulatedDouble4x4 p;
+
+  for (uint i = 0; i < 4; i++)
+  {
+    for (uint j = 0; j < 4; j++)
+    {
+      SS sum = { 0.0, 0.0 };
+      for (uint k = 0; k < 4; k++)
+      {
+        SS as =
+        {
+          a.high[i][k],
+          a.low[i][k],
+        };
+
+        SS bs =
+        {
+          b.high[k][j],
+          b.low[k][j],
+        };
+        sum = dsadd(sum, dsmul(as, bs));
+      }
+      p.high[i][j] = sum.hs;
+      p.low[i][j] = sum.ls;
+    }
+  }
+  return p;
+}
+
+EmulatedDouble4 EDMul(EmulatedDouble4x4 a, EmulatedDouble4 b)
+{
+  EmulatedDouble4 p;
+  for (uint i = 0; i < 4; i++)
+  {
+    SS sum = { 0.0, 0.0 };
+    for (uint j = 0; j < 4; j++)
+    {
+      SS as = { a.high[i][j], a.low[i][j] };
+      SS ab = { b.high[j], b.low[j] };
+      sum = dsadd(sum, dsmul(as, ab));
+    }
+    p.high[i] = sum.hs;
+    p.low[i] = sum.ls;
+  }
+  return p;
+}
+
 VSOut VSMain(Vertex vertex)
 {
-  VSOut ret = (VSOut)0;
+  VSOut ret = (VSOut) 0;
 
-  double3 pos = { 
-    asdouble(vertex.posLow.x, vertex.posHigh.x),
-    asdouble(vertex.posLow.y, vertex.posHigh.y),
-    asdouble(vertex.posLow.z, vertex.posHigh.z),
+  EmulatedDouble4 pos =
+  {
+    float4(vertex.posHigh, 1.0),
+    float4(vertex.posLow, 0.0),
   };
 
-  double4x4 mvp = mul(sceneData.mvp, perMesh.transform);
-  ret.pos = (float4) mul(mvp, double4(pos, 1.0));
+  EmulatedDouble4x4 mvp =
+  {
+    sceneData.mvpHigh,
+    sceneData.mvpLow,
+  };
+
+  EmulatedDouble4x4 transform =
+  {
+    perMesh.transformHigh,
+    perMesh.transformLow,
+  };
+
+  EmulatedDouble4x4 finalMVP = EDMul(mvp, transform);
+  EmulatedDouble4 transformedPos = EDMul(finalMVP, pos);
+
+  ret.pos = transformedPos.high + transformedPos.low;
+
+  //ret.pos = (float4) mul(mvp, double4(pos, 1.0));
   ret.color = (vertex.normal + 1.0) / 2.0;
   return ret;
 }
