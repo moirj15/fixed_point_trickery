@@ -3,6 +3,7 @@
 #include "methods/CpuDouble.hpp"
 #include "methods/F32.hpp"
 #include "methods/GpuDouble.hpp"
+#include "methods/GpuEmulatedDouble.hpp"
 #include "modelLoader.hpp"
 #include "shaderWatcher.hpp"
 #include "utils.hpp"
@@ -24,6 +25,7 @@ enum class Method
   F32,
   CpuDouble,
   GpuDouble,
+  GpuEmulatedDouble,
 };
 
 template<typename T>
@@ -95,12 +97,14 @@ int main(int argc, char **argv)
   Model       model = LoadModel("models/suzanne.glb");
   Scene       scene{{model}};
 
-  methods::F32Method       f32Method{ctx.Device(), shaderWatcher};
-  methods::CpuDoubleMethod cpuDoubleMethod{ctx.Device(), shaderWatcher};
-  methods::GpuDoubleMethod gpuDoubleMethod{ctx.Device(), shaderWatcher};
+  methods::F32Method               f32Method{ctx.Device(), shaderWatcher};
+  methods::CpuDoubleMethod         cpuDoubleMethod{ctx.Device(), shaderWatcher};
+  methods::GpuDoubleMethod         gpuDoubleMethod{ctx.Device(), shaderWatcher};
+  methods::GpuEmulatedDoubleMethod emulatedDoubleMethod{ctx.Device(), shaderWatcher};
   f32Method.SetScene(scene);
   cpuDoubleMethod.SetScene(scene);
   gpuDoubleMethod.SetScene(scene);
+  emulatedDoubleMethod.SetScene(scene);
 
   glm::vec3  modelPos{0.0, 0.0, 0.0};
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
@@ -136,6 +140,10 @@ int main(int argc, char **argv)
     {
       method = Method::GpuDouble;
     }
+    else if (ImGui::RadioButton("Emulated Double Method", method == Method::GpuEmulatedDouble))
+    {
+      method = Method::GpuEmulatedDouble;
+    }
 
     ImGui::Separator();
 
@@ -152,6 +160,7 @@ int main(int argc, char **argv)
         f32Method.SetScene(scene);
         cpuDoubleMethod.SetScene(scene);
         gpuDoubleMethod.SetScene(scene);
+        emulatedDoubleMethod.SetScene(scene);
       }
     }
 
@@ -239,6 +248,13 @@ int main(int argc, char **argv)
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
       gpuDoubleMethod.Draw(ctx, shaderWatcher);
+      break;
+    case Method::GpuEmulatedDouble:
+      emulatedDoubleMethod.Update(
+        ctx.DeviceContext(),
+        projection * glm::dmat4{arcballCamera.transform()},
+        glm::dvec3{modelPos});
+      emulatedDoubleMethod.Draw(ctx, shaderWatcher);
       break;
     default:
       assert(0);
