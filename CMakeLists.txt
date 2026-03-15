@@ -35,6 +35,9 @@ add_executable(fixed_point_trickery
   src/methods/GpuDouble.cpp
   src/methods/GpuEmulatedDouble.hpp
   src/methods/GpuEmulatedDouble.cpp
+  src/methods/Rtc.hpp
+  src/methods/Rtc.cpp
+
   src/methods/Parallax.hpp
   src/methods/Parallax.cpp
 )

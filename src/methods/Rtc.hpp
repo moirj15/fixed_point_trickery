@@ -1,0 +1,53 @@
+
+#pragma once
+
+#include "../dx.hpp"
+#include "../scene.hpp"
+#include "../shaderWatcher.hpp"
+
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+
+struct Scene;
+struct RenderContext;
+
+namespace methods
+{
+
+class Rtc final
+{
+  const std::string VERT_PATH  = "shaders/Rtc.hlsl";
+  const std::string PIXEL_PATH = "shaders/Rtc.hlsl";
+
+  struct DrawOffsets
+  {
+    u32 startIndex{};
+    u32 baseVertex{};
+    u32 indexCount{};
+  };
+
+  RenderProgramHandle               mShadersHandle;
+  dx::StorageBuffer                 mDrawIDBuf;
+  ComPtr<ID3D11Buffer>              mVertBuf;
+  ComPtr<ID3D11Buffer>              mIndexBuf;
+  std::vector<ComPtr<ID3D11Buffer>> mConstantBufs;
+  std::vector<DrawOffsets>          mDraws;
+  std::vector<glm::dvec3>           mCenterEyes;
+  Scene                             mScene{};
+  ID3D11Device3                    *mDevice;
+
+public:
+  explicit Rtc(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
+
+  void SetScene(const Scene &scene);
+
+  void Update(
+    ID3D11DeviceContext3 *ctx,
+    const glm::dmat4     &projection,
+    const glm::dmat4     &camera,
+    const glm::dvec3     &modelPos);
+
+  void Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher);
+};
+
+} // namespace methods
