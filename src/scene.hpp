@@ -14,11 +14,23 @@ struct ModelVertex
   glm::vec2 textureCoord{};
 };
 
+struct BoundingBox
+{
+  glm::dvec3 min{};
+  glm::dvec3 max{};
+
+  glm::vec3 GetScale() const
+  {
+    return (max - min) * 0.5;
+  }
+};
+
 struct ModelMesh
 {
   std::vector<ModelVertex> vertices;
   std::vector<u32>         indices;
   bool                     hasTexCoord{};
+  BoundingBox              boundingBox;
 };
 
 struct Model

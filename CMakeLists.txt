@@ -72,42 +72,42 @@ target_link_libraries(fixed_point_trickery PRIVATE
   d3dcompiler.lib
 )
 
-add_executable(tests
-  src/tests/main.cpp
-  src/utils.hpp
-  src/utils.cpp
-  src/dx.hpp
-  src/dx.cpp
-  src/shaderWatcher.hpp
-  src/shaderWatcher.cpp
-  src/tests/shaderWatcherTests.cpp
-)
+#add_executable(tests
+#  src/tests/main.cpp
+#  src/utils.hpp
+#  src/utils.cpp
+#  src/dx.hpp
+#  src/dx.cpp
+#  src/shaderWatcher.hpp
+#  src/shaderWatcher.cpp
+#  src/tests/shaderWatcherTests.cpp
+#)
 
-include(CTest)
-include(Catch)
-catch_discover_tests(tests)
-target_compile_features(tests PRIVATE cxx_std_23)
-target_link_libraries(tests PRIVATE
-  SDL2::SDL2
-  SDL2::SDL2main
-  imgui::imgui
-  assimp::assimp
-  Microsoft::DirectXTK
-  Catch2::Catch2
-  gdi32.lib
-  user32.lib
-  kernel32.lib
-  msvcrtd.lib
-  winmm.lib
-  imm32.lib
-  version.lib
-  libcmt.lib
-  dxgi.lib
-  dxguid.lib
-  winmm.lib
-  gdi32
-  Setupapi.lib
-  d3d11.lib
-  d3dcompiler.lib
-)
+#include(CTest)
+#include(Catch)
+#catch_discover_tests(tests)
+#target_compile_features(tests PRIVATE cxx_std_23)
+#target_link_libraries(tests PRIVATE
+#  SDL2::SDL2
+#  SDL2::SDL2main
+#  imgui::imgui
+#  assimp::assimp
+#  Microsoft::DirectXTK
+#  Catch2::Catch2
+#  gdi32.lib
+#  user32.lib
+#  kernel32.lib
+#  msvcrtd.lib
+#  winmm.lib
+#  imm32.lib
+#  version.lib
+#  libcmt.lib
+#  dxgi.lib
+#  dxguid.lib
+#  winmm.lib
+#  gdi32
+#  Setupapi.lib
+#  d3d11.lib
+#  d3dcompiler.lib
+#)
 

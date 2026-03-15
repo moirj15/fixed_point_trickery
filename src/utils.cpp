@@ -1,10 +1,12 @@
 #include "utils.hpp"
 
 #include <cassert>
+#include <filesystem>
 namespace io
 {
 std::string ReadFile(const std::string &path)
 {
+  auto    p = std::filesystem::current_path();
   FilePtr file{fopen(path.data(), "rb")};
   assert(file);
 

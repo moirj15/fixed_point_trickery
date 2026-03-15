@@ -4,6 +4,7 @@
 #include "methods/F32.hpp"
 #include "methods/GpuDouble.hpp"
 #include "methods/GpuEmulatedDouble.hpp"
+#include "methods/Parallax.hpp"
 #include "modelLoader.hpp"
 #include "shaderWatcher.hpp"
 #include "utils.hpp"
@@ -26,6 +27,7 @@ enum class Method
   CpuDouble,
   GpuDouble,
   GpuEmulatedDouble,
+  Parallax,
 };
 
 template<typename T>
@@ -101,10 +103,12 @@ int main(int argc, char **argv)
   methods::CpuDoubleMethod         cpuDoubleMethod{ctx.Device(), shaderWatcher};
   methods::GpuDoubleMethod         gpuDoubleMethod{ctx.Device(), shaderWatcher};
   methods::GpuEmulatedDoubleMethod emulatedDoubleMethod{ctx.Device(), shaderWatcher};
+  methods::Parallax                parallaxMethod{ctx.Device(), shaderWatcher};
   f32Method.SetScene(scene);
   cpuDoubleMethod.SetScene(scene);
   gpuDoubleMethod.SetScene(scene);
   emulatedDoubleMethod.SetScene(scene);
+  parallaxMethod.SetScene(scene);
 
   glm::vec3  modelPos{0.0, 0.0, 0.0};
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
@@ -144,6 +148,10 @@ int main(int argc, char **argv)
     {
       method = Method::GpuEmulatedDouble;
     }
+    else if (ImGui::RadioButton("Parallax Method", method == Method::Parallax))
+    {
+      method = Method::Parallax;
+    }
 
     ImGui::Separator();
 
@@ -161,6 +169,7 @@ int main(int argc, char **argv)
         cpuDoubleMethod.SetScene(scene);
         gpuDoubleMethod.SetScene(scene);
         emulatedDoubleMethod.SetScene(scene);
+        parallaxMethod.SetScene(scene);
       }
     }
 
@@ -255,6 +264,13 @@ int main(int argc, char **argv)
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
       emulatedDoubleMethod.Draw(ctx, shaderWatcher);
+      break;
+    case Method::Parallax:
+      parallaxMethod.Update(
+        ctx.DeviceContext(),
+        projection * glm::dmat4{arcballCamera.transform()},
+        glm::dvec3{modelPos});
+      parallaxMethod.Draw(ctx, shaderWatcher);
       break;
     default:
       assert(0);

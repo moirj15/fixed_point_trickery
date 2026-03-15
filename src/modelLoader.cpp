@@ -60,6 +60,20 @@ Model ProcessMeshes(
       continue;
     }
     ModelMesh mesh;
+    mesh.boundingBox = {
+      .min =
+        {
+          aiMesh->mAABB.mMin.x,
+          aiMesh->mAABB.mMin.y,
+          aiMesh->mAABB.mMin.z,
+        },
+      .max =
+        {
+          aiMesh->mAABB.mMax.x,
+          aiMesh->mAABB.mMax.y,
+          aiMesh->mAABB.mMax.z,
+        },
+    };
     for (size_t i = 0; i < aiMesh->mNumVertices; i++)
     {
       mesh.vertices.emplace_back(ModelVertex{
@@ -131,8 +145,10 @@ Model LoadModel(const std::string &path)
   auto e = std::filesystem::exists(path);
   // Sort by the primitive type so we can skip anything that's not an indexed triangle
 
-  const aiScene *scene =
-    importer.ReadFile(path, aiProcess_Triangulate | aiProcess_SortByPType | aiProcess_GenUVCoords);
+  const aiScene *scene = importer.ReadFile(
+    path,
+    aiProcess_GenBoundingBoxes | aiProcess_Triangulate | aiProcess_SortByPType
+      | aiProcess_GenUVCoords);
   if (scene == nullptr)
   {
     std::println("err: {}", importer.GetErrorString());

@@ -18,6 +18,9 @@ class Parallax final
   const std::string VERT_PATH  = "shaders/Parallax.hlsl";
   const std::string PIXEL_PATH = "shaders/Parallax.hlsl";
 
+  const std::string BB_DEBUG_VERT_PATH  = "shaders/BoundingBox.hlsl";
+  const std::string BB_DEBUG_PIXEL_PATH = "shaders/BoundingBox.hlsl";
+
   struct DrawOffsets
   {
     u32 startIndex{};
@@ -34,6 +37,13 @@ class Parallax final
   std::vector<ComPtr<ID3D11Buffer>> mModelConstants;
   Scene                             mScene{};
   ID3D11Device3                    *mDevice;
+
+  RenderProgramHandle               mBBDebugShadersHandle;
+  ComPtr<ID3D11Buffer>              mBBDebugVertBuf;
+  ComPtr<ID3D11Buffer>              mBBDebugIndexBuf;
+  ComPtr<ID3D11Buffer>              mBBDebugConstantBuf;
+  std::vector<ComPtr<ID3D11Buffer>> mBBDebugModelConstants;
+  u32                               mBBDebugIndexCount;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);

@@ -1,27 +1,29 @@
 #include "Parallax.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+
 namespace methods
 {
 
 struct SceneData
 {
-  glm::dmat4 modelView;
+  glm::mat4 modelView;
 };
 
 struct PerMeshData
 {
-  glm::dmat4 transform{};
+  glm::mat4 transform{};
 };
 
-struct GpuDoubleVertex
+using VertexFormat = ModelVertex;
+
+struct BBDebugVertex
 {
-  glm::uvec3 low{};
-  glm::uvec3 high{};
-  glm::vec3  normal{};
-  glm::vec2  textureCoord{};
+  glm::vec3 position;
+  glm::vec3 color;
 };
-
-using VertexFormat = GpuDoubleVertex;
 
 Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     mShadersHandle{shaderWatcher.RegisterShader(
@@ -29,20 +31,11 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
       PIXEL_PATH,
       {
         {
-          .SemanticName         = "POSITION_LOW",
+          .SemanticName         = "POSITION",
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32B32_UINT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, low),
-          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
-          .InstanceDataStepRate = 0,
-        },
-        {
-          .SemanticName         = "POSITION_HIGH",
-          .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32_UINT,
-          .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, high),
+          .AlignedByteOffset    = offsetof(VertexFormat, position),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -68,36 +61,84 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     mVertBuf{},
     mIndexBuf{},
     mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
-    mDevice{device}
+    mDevice{device},
+    mBBDebugShadersHandle{shaderWatcher.RegisterShader(
+      BB_DEBUG_VERT_PATH,
+      BB_DEBUG_PIXEL_PATH,
+      {
+        {
+          .SemanticName         = "POSITION",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32_UINT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(BBDebugVertex, position),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+        {
+          .SemanticName         = "COLOR",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(BBDebugVertex, color),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+      })},
+    mBBDebugConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)}
 {
+  std::vector<BBDebugVertex> vertices = {
+    {{-1.0f, 1.0f, -1.0f}, {0, 0, 1}},
+    {{1.0f, 1.0f, -1.0f}, {0, 1, 0}},
+    {{-1.0f, -1.0f, -1.0f}, {1, 0, 0}},
+    {{1.0f, -1.0f, -1.0f}, {0, 1, 1}},
+    {{-1.0f, 1.0f, 1.0f}, {0, 0, 1}},
+    {{1.0f, 1.0f, 1.0f}, {1, 0, 0}},
+    {{-1.0f, -1.0f, 1.0f}, {0, 1, 0}},
+    {{1.0f, -1.0f, 1.0f}, {0, 1, 1}},
+  };
+
+  // clang-format off
+  std::vector<u32> indices = {
+    0, 1, 2,          // side 1
+    2, 1, 3, 
+    4, 0, 6, // side 2
+    6, 0, 2, 
+    7, 5, 6, // side 3
+    6, 5, 4, 
+    3, 1, 7, // side 4
+    7, 1, 5, 
+    4, 5, 0, // side 5
+    0, 5, 1, 
+    3, 7, 2, // side 6
+    2, 7, 6,
+  };
+  // clang-format on
+  mBBDebugIndexCount = indices.size();
+
+  mBBDebugVertBuf = dx::CreateVertexBuffer<BBDebugVertex>(
+    mDevice,
+    vertices.size(),
+    {vertices.begin(), vertices.end()});
+  mBBDebugIndexBuf =
+    dx::CreateIndexBuffer<u32>(mDevice, indices.size(), {indices.begin(), indices.end()});
 }
 
 void Parallax::SetScene(const Scene &scene)
 {
-  mDraws          = {};
-  mModelConstants = {};
+  mDraws                 = {};
+  mModelConstants        = {};
+  mBBDebugModelConstants = {};
   std::vector<VertexFormat> vertices;
   std::vector<u32>          indices;
 
-  u32  vertexStart = 0;
-  u32  startIndex  = 0;
-  auto ToUVec3     = [](const glm::dvec3 &v, glm::uvec3 &lo, glm::uvec3 &hi) {
-    for (u32 i = 0; i < 3; i++)
-    {
-      lo[i] = std::bit_cast<u64>(v[i]) & 0xffffffff;
-      hi[i] = std::bit_cast<u64>(v[i]) >> 32;
-    }
-  };
+  u32 vertexStart = 0;
+  u32 startIndex  = 0;
   for (auto &mesh : scene.model.parts)
   {
     for (auto &vertex : mesh.vertices)
     {
-      VertexFormat v{};
-
-      ToUVec3(vertex.position, v.low, v.high);
-      v.normal       = vertex.normal;
-      v.textureCoord = vertex.textureCoord;
-      vertices.push_back(v);
+      vertices.push_back(vertex);
     }
     for (auto &index : mesh.indices)
     {
@@ -131,7 +172,13 @@ void Parallax::SetScene(const Scene &scene)
     PerMeshData data{
       .transform = scene.model.transforms[i],
     };
+    PerMeshData bbDebugData{
+      .transform =
+        glm::scale(scene.model.transforms[i], scene.model.parts[i].boundingBox.GetScale()),
+    };
     mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
+    mBBDebugModelConstants.emplace_back(
+      dx::CreateConstantBuffer<PerMeshData>(mDevice, &bbDebugData));
   }
 }
 
@@ -147,35 +194,76 @@ void Parallax::Update(
   };
   memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
   ctx->Unmap(mConstantBuf.Get(), 0);
+
+  D3D11_MAPPED_SUBRESOURCE mapped2{};
+  dx::ThrowIfFailed(
+    ctx->Map(mBBDebugConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped2));
+  SceneData *data2 = reinterpret_cast<SceneData *>(mapped2.pData);
+  data2->modelView = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos);
+  ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 }
 
 void Parallax::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher)
 {
-  RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
-  ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
-  ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
-  u32 stride = sizeof(VertexFormat);
-  u32 offset = 0;
-  ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
-  ctx->IASetInputLayout(rp.inputLayout);
-  ctx->VSSetShader(rp.vertexShader, nullptr, 0);
-  ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
+  const auto DrawModel = [&]() {
+    RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
+    ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
-  ctx->RSSetState(renderContext.rasterizerState.Get());
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+    u32 stride = sizeof(VertexFormat);
+    u32 offset = 0;
+    ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
+    ctx->IASetInputLayout(rp.inputLayout);
+    ctx->VSSetShader(rp.vertexShader, nullptr, 0);
+    ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
 
-  ctx->PSSetShader(rp.pixelShader, nullptr, 0);
-  ctx->OMSetRenderTargets(
-    1,
-    renderContext.backbufferRTV.GetAddressOf(),
-    renderContext.depthStencilView.Get());
-  for (u32 i = 0; i < mDraws.size(); i++)
-  {
-    const DrawOffsets draw = mDraws[i];
-    ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
-    ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
-  }
+    ctx->RSSetState(renderContext.rasterizerState.Get());
+
+    ctx->PSSetShader(rp.pixelShader, nullptr, 0);
+    ctx->OMSetRenderTargets(
+      1,
+      renderContext.backbufferRTV.GetAddressOf(),
+      renderContext.depthStencilView.Get());
+    for (u32 i = 0; i < mDraws.size(); i++)
+    {
+      const DrawOffsets draw = mDraws[i];
+      ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
+      ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
+    }
+  };
+
+  const auto DrawBBDebug = [&]() {
+    RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
+    ID3D11DeviceContext *ctx = renderContext.DeviceContext();
+
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->IASetIndexBuffer(mBBDebugIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+    u32 stride = sizeof(BBDebugVertex);
+    u32 offset = 0;
+    ctx->IASetVertexBuffers(0, 1, mBBDebugVertBuf.GetAddressOf(), &stride, &offset);
+    ctx->IASetInputLayout(rp.inputLayout);
+    ctx->VSSetShader(rp.vertexShader, nullptr, 0);
+    ctx->VSSetConstantBuffers(0, 1, mBBDebugConstantBuf.GetAddressOf());
+
+    ctx->RSSetState(renderContext.rasterizerState.Get());
+
+    ctx->PSSetShader(rp.pixelShader, nullptr, 0);
+    ctx->OMSetRenderTargets(
+      1,
+      renderContext.backbufferRTV.GetAddressOf(),
+      renderContext.depthStencilView.Get());
+    for (u32 i = 0; i < mDraws.size(); i++)
+    {
+      const DrawOffsets draw = mDraws[i];
+      ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
+      ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
+    }
+  };
+
+  // DrawModel();
+  DrawBBDebug();
 }
 
 } // namespace methods
