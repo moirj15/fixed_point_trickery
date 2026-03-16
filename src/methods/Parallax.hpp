@@ -44,6 +44,7 @@ class Parallax final
   ComPtr<ID3D11Buffer>              mBBDebugConstantBuf;
   std::vector<ComPtr<ID3D11Buffer>> mBBDebugModelConstants;
   u32                               mBBDebugIndexCount;
+  ComPtr<ID3D11RasterizerState>     mBBDebugRSState;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);

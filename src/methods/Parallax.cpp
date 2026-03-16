@@ -122,6 +122,12 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     {vertices.begin(), vertices.end()});
   mBBDebugIndexBuf =
     dx::CreateIndexBuffer<u32>(mDevice, indices.size(), {indices.begin(), indices.end()});
+
+  CD3D11_RASTERIZER_DESC rsDesc{CD3D11_DEFAULT{}};
+  rsDesc.FrontCounterClockwise = true;
+  rsDesc.FillMode              = D3D11_FILL_WIREFRAME;
+
+  dx::ThrowIfFailed(mDevice->CreateRasterizerState(&rsDesc, mBBDebugRSState.GetAddressOf()));
 }
 
 void Parallax::SetScene(const Scene &scene)
@@ -235,7 +241,7 @@ void Parallax::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatch
   };
 
   const auto DrawBBDebug = [&]() {
-    RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
+    RenderProgram        rp  = shaderWatcher.GetRenderProgram(mBBDebugShadersHandle);
     ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -247,7 +253,7 @@ void Parallax::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatch
     ctx->VSSetShader(rp.vertexShader, nullptr, 0);
     ctx->VSSetConstantBuffers(0, 1, mBBDebugConstantBuf.GetAddressOf());
 
-    ctx->RSSetState(renderContext.rasterizerState.Get());
+    ctx->RSSetState(mBBDebugRSState.Get());
 
     ctx->PSSetShader(rp.pixelShader, nullptr, 0);
     ctx->OMSetRenderTargets(
@@ -262,7 +268,7 @@ void Parallax::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatch
     }
   };
 
-  // DrawModel();
+  DrawModel();
   DrawBBDebug();
 }
 

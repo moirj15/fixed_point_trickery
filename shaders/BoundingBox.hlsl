@@ -44,5 +44,6 @@ VSOut VSMain(Vertex vertex)
 
 float4 PSMain(VSOut vsOut) : SV_TARGET
 {
-  return float4(vsOut.color, 1.0);
+  return 0.0.xxxx;
+  //return float4(vsOut.color, 1.0);
 }
