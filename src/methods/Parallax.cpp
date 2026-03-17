@@ -1,7 +1,9 @@
 #include "Parallax.hpp"
 
+#include <array>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 namespace methods
@@ -24,6 +26,34 @@ struct BBDebugVertex
   glm::vec3 position;
   glm::vec3 color;
 };
+
+static std::vector<BBDebugVertex> sBBVertices = {
+  {{-1.0f, 1.0f, -1.0f}, {0, 0, 1}},
+  {{1.0f, 1.0f, -1.0f}, {0, 1, 0}},
+  {{-1.0f, -1.0f, -1.0f}, {1, 0, 0}},
+  {{1.0f, -1.0f, -1.0f}, {0, 1, 1}},
+  {{-1.0f, 1.0f, 1.0f}, {0, 0, 1}},
+  {{1.0f, 1.0f, 1.0f}, {1, 0, 0}},
+  {{-1.0f, -1.0f, 1.0f}, {0, 1, 0}},
+  {{1.0f, -1.0f, 1.0f}, {0, 1, 1}},
+};
+
+// clang-format off
+  static std::vector<u32> sBBIndices = {
+    0, 1, 2,          // side 1
+    2, 1, 3, 
+    4, 0, 6, // side 2
+    6, 0, 2, 
+    7, 5, 6, // side 3
+    6, 5, 4, 
+    3, 1, 7, // side 4
+    7, 1, 5, 
+    4, 5, 0, // side 5
+    0, 5, 1, 
+    3, 7, 2, // side 6
+    2, 7, 6,
+  };
+// clang-format on
 
 Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     mShadersHandle{shaderWatcher.RegisterShader(
@@ -87,41 +117,14 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
       })},
     mBBDebugConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)}
 {
-  std::vector<BBDebugVertex> vertices = {
-    {{-1.0f, 1.0f, -1.0f}, {0, 0, 1}},
-    {{1.0f, 1.0f, -1.0f}, {0, 1, 0}},
-    {{-1.0f, -1.0f, -1.0f}, {1, 0, 0}},
-    {{1.0f, -1.0f, -1.0f}, {0, 1, 1}},
-    {{-1.0f, 1.0f, 1.0f}, {0, 0, 1}},
-    {{1.0f, 1.0f, 1.0f}, {1, 0, 0}},
-    {{-1.0f, -1.0f, 1.0f}, {0, 1, 0}},
-    {{1.0f, -1.0f, 1.0f}, {0, 1, 1}},
-  };
-
-  // clang-format off
-  std::vector<u32> indices = {
-    0, 1, 2,          // side 1
-    2, 1, 3, 
-    4, 0, 6, // side 2
-    6, 0, 2, 
-    7, 5, 6, // side 3
-    6, 5, 4, 
-    3, 1, 7, // side 4
-    7, 1, 5, 
-    4, 5, 0, // side 5
-    0, 5, 1, 
-    3, 7, 2, // side 6
-    2, 7, 6,
-  };
-  // clang-format on
-  mBBDebugIndexCount = indices.size();
+  mBBDebugIndexCount = sBBIndices.size();
 
   mBBDebugVertBuf = dx::CreateVertexBuffer<BBDebugVertex>(
     mDevice,
-    vertices.size(),
-    {vertices.begin(), vertices.end()});
+    sBBVertices.size(),
+    {sBBVertices.begin(), sBBVertices.end()});
   mBBDebugIndexBuf =
-    dx::CreateIndexBuffer<u32>(mDevice, indices.size(), {indices.begin(), indices.end()});
+    dx::CreateIndexBuffer<u32>(mDevice, sBBIndices.size(), {sBBIndices.begin(), sBBIndices.end()});
 
   CD3D11_RASTERIZER_DESC rsDesc{CD3D11_DEFAULT{}};
   rsDesc.FrontCounterClockwise = true;
@@ -135,6 +138,8 @@ void Parallax::SetScene(const Scene &scene)
   mDraws                 = {};
   mModelConstants        = {};
   mBBDebugModelConstants = {};
+  mBBTransforms          = {};
+  mScene                 = scene;
   std::vector<VertexFormat> vertices;
   std::vector<u32>          indices;
 
@@ -182,17 +187,23 @@ void Parallax::SetScene(const Scene &scene)
       .transform =
         glm::scale(scene.model.transforms[i], scene.model.parts[i].boundingBox.GetScale()),
     };
+    mBBTransforms.emplace_back(bbDebugData.transform);
     mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
     mBBDebugModelConstants.emplace_back(
       dx::CreateConstantBuffer<PerMeshData>(mDevice, &bbDebugData));
   }
 }
 
-void Parallax::Update(
+void Parallax::Draw(
+  u32                   width,
+  u32                   height,
   ID3D11DeviceContext3 *ctx,
   const glm::dmat4     &cameraProjection,
-  const glm::dvec3     &modelPos)
+  const glm::dvec3     &modelPos,
+  dx::RenderContext    &renderContext,
+  ShaderWatcher        &shaderWatcher)
 {
+
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
   SceneData data{
@@ -207,10 +218,6 @@ void Parallax::Update(
   SceneData *data2 = reinterpret_cast<SceneData *>(mapped2.pData);
   data2->modelView = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos);
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
-}
-
-void Parallax::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher)
-{
 
   const auto DrawModel = [&]() {
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
@@ -268,8 +275,42 @@ void Parallax::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatch
     }
   };
 
+  const auto GetBoundingQuad = [&]() {
+    std::array<glm::vec2, 8> clipSpace;
+    glm::mat4                clipSpaceToPixelCoords = glm::identity<glm::mat4>();
+
+    clipSpaceToPixelCoords[0][0] = width / 2.0;
+    clipSpaceToPixelCoords[3][0] = width / 2.0;
+    clipSpaceToPixelCoords[1][1] = height / 2.0;
+    clipSpaceToPixelCoords[3][1] = height / 2.0;
+
+    for (size_t i = 0; i < mScene.model.parts.size(); i++)
+    {
+      const glm::dmat4 mvp = cameraProjection * glm::dmat4{data.modelView} * mBBTransforms[i];
+      for (size_t vertIndex = 0; vertIndex < sBBVertices.size(); vertIndex++)
+      {
+        const glm::dvec4 position            = glm::dvec4{sBBVertices[vertIndex].position, 1.0};
+        const glm::vec4  transformedPosition = clipSpaceToPixelCoords * glm::vec4{mvp * position};
+        clipSpace[vertIndex] = glm::vec2{transformedPosition} / transformedPosition.w;
+      }
+      // Note: we don't care if the transformed points go beyond the clipping planes, since we just
+      // want the width and height for the raster texture
+
+      glm::vec2 pMin{std::numeric_limits<f32>::max()};
+      glm::vec2 pMax{std::numeric_limits<f32>::min()};
+      for (const auto &p : clipSpace)
+      {
+        pMin = glm::min(pMin, p);
+        pMax = glm::min(pMax, p);
+      }
+
+      const glm::vec2 dim = pMax - pMin;
+    }
+  };
+
   DrawModel();
   DrawBBDebug();
+  GetBoundingQuad();
 }
 
 } // namespace methods

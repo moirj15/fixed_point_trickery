@@ -21,6 +21,9 @@ class Parallax final
   const std::string BB_DEBUG_VERT_PATH  = "shaders/BoundingBox.hlsl";
   const std::string BB_DEBUG_PIXEL_PATH = "shaders/BoundingBox.hlsl";
 
+  const std::string QUAD_DEBUG_VERT_PATH  = "shaders/DebugQuad.hlsl";
+  const std::string QUAD_DEBUG_PIXEL_PATH = "shaders/DebugQuad.hlsl";
+
   struct DrawOffsets
   {
     u32 startIndex{};
@@ -45,16 +48,21 @@ class Parallax final
   std::vector<ComPtr<ID3D11Buffer>> mBBDebugModelConstants;
   u32                               mBBDebugIndexCount;
   ComPtr<ID3D11RasterizerState>     mBBDebugRSState;
+  std::vector<glm::dmat4>           mBBTransforms;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
 
   void SetScene(const Scene &scene);
 
-  void
-  Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &cameraProjection, const glm::dvec3 &modelPos);
-
-  void Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher);
+  void Draw(
+    u32                   width,
+    u32                   height,
+    ID3D11DeviceContext3 *ctx,
+    const glm::dmat4     &cameraProjection,
+    const glm::dvec3     &modelPos,
+    dx::RenderContext    &renderContext,
+    ShaderWatcher        &shaderWatcher);
 };
 
 } // namespace methods

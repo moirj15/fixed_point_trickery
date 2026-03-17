@@ -266,11 +266,14 @@ int main(int argc, char **argv)
       emulatedDoubleMethod.Draw(ctx, shaderWatcher);
       break;
     case Method::Parallax:
-      parallaxMethod.Update(
+      parallaxMethod.Draw(
+        WIDTH,
+        HEIGHT,
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
-        glm::dvec3{modelPos});
-      parallaxMethod.Draw(ctx, shaderWatcher);
+        glm::dvec3{modelPos},
+        ctx,
+        shaderWatcher);
       break;
     default:
       assert(0);
