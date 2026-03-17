@@ -99,7 +99,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
         {
           .SemanticName         = "POSITION",
           .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32_UINT,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
           .AlignedByteOffset    = offsetof(BBDebugVertex, position),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
@@ -115,7 +115,21 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .InstanceDataStepRate = 0,
         },
       })},
-    mBBDebugConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)}
+    mBBDebugConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
+    mQuadDebugShadersHandle{shaderWatcher.RegisterShader(
+      QUAD_DEBUG_VERT_PATH,
+      QUAD_DEBUG_PIXEL_PATH,
+      {
+        {
+          .SemanticName         = "POSITION",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32A32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = 0,
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+      })}
 {
   mBBDebugIndexCount = sBBIndices.size();
 
@@ -131,6 +145,12 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   rsDesc.FillMode              = D3D11_FILL_WIREFRAME;
 
   dx::ThrowIfFailed(mDevice->CreateRasterizerState(&rsDesc, mBBDebugRSState.GetAddressOf()));
+
+  mQuadVertBuf = dx::CreateVertexBuffer<glm::vec4>(mDevice, 4, {}, true);
+
+  std::array<u32, 6> quadIndices = {0, 1, 2, 2, 1, 3};
+
+  mQuadIndexBuf = dx::CreateIndexBuffer<u32>(mDevice, 6, quadIndices);
 }
 
 void Parallax::SetScene(const Scene &scene)
@@ -216,7 +236,7 @@ void Parallax::Draw(
   dx::ThrowIfFailed(
     ctx->Map(mBBDebugConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped2));
   SceneData *data2 = reinterpret_cast<SceneData *>(mapped2.pData);
-  data2->modelView = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos);
+  data2->modelView = cameraProjection; // * glm::translate(glm::identity<glm::dmat4>(), modelPos);
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 
   const auto DrawModel = [&]() {
@@ -275,8 +295,37 @@ void Parallax::Draw(
     }
   };
 
+  const auto DrawQuadDebug = [&]() {
+    RenderProgram        rp  = shaderWatcher.GetRenderProgram(mQuadDebugShadersHandle);
+    ID3D11DeviceContext *ctx = renderContext.DeviceContext();
+
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->IASetIndexBuffer(mQuadIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+    u32 stride = sizeof(glm::vec4);
+    u32 offset = 0;
+    ctx->IASetVertexBuffers(0, 1, mQuadVertBuf.GetAddressOf(), &stride, &offset);
+    ctx->IASetInputLayout(rp.inputLayout);
+    ctx->VSSetShader(rp.vertexShader, nullptr, 0);
+    // ctx->VSSetConstantBuffers(0, 1, mBBDebugConstantBuf.GetAddressOf());
+
+    ctx->RSSetState(mBBDebugRSState.Get());
+
+    ctx->PSSetShader(rp.pixelShader, nullptr, 0);
+    ctx->OMSetRenderTargets(
+      1,
+      renderContext.backbufferRTV.GetAddressOf(),
+      renderContext.depthStencilView.Get());
+    for (u32 i = 0; i < mDraws.size(); i++)
+    {
+      const DrawOffsets draw = mDraws[i];
+      // ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
+      ctx->DrawIndexed(6, 0, 0);
+    }
+  };
+
   const auto GetBoundingQuad = [&]() {
     std::array<glm::vec2, 8> clipSpace;
+    std::array<glm::vec3, 8> transformedVerts;
     glm::mat4                clipSpaceToPixelCoords = glm::identity<glm::mat4>();
 
     clipSpaceToPixelCoords[0][0] = width / 2.0;
@@ -289,10 +338,30 @@ void Parallax::Draw(
       const glm::dmat4 mvp = cameraProjection * glm::dmat4{data.modelView} * mBBTransforms[i];
       for (size_t vertIndex = 0; vertIndex < sBBVertices.size(); vertIndex++)
       {
-        const glm::dvec4 position            = glm::dvec4{sBBVertices[vertIndex].position, 1.0};
-        const glm::vec4  transformedPosition = clipSpaceToPixelCoords * glm::vec4{mvp * position};
-        clipSpace[vertIndex] = glm::vec2{transformedPosition} / transformedPosition.w;
+        const glm::dvec4 position = glm::dvec4{sBBVertices[vertIndex].position, 1.0};
+        const glm::vec4  transformedPosition =
+          glm::vec4{glm::dmat4{data.modelView} * mBBTransforms[i] * position};
+
+        transformedVerts[vertIndex] = mvp * glm::vec4{position};
+        clipSpace[vertIndex]        = glm::vec2{transformedPosition} / transformedPosition.w;
       }
+
+      glm::vec2 cMin{std::numeric_limits<f32>::max()};
+      glm::vec2 cMax{std::numeric_limits<f32>::min()};
+      for (const auto &p : transformedVerts)
+      {
+        cMin = glm::min(cMin, glm::vec2{p});
+        cMax = glm::max(cMax, glm::vec2{p});
+      }
+
+      D3D11_MAPPED_SUBRESOURCE mapped{};
+      dx::ThrowIfFailed(ctx->Map(mQuadVertBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
+      std::span verts = {reinterpret_cast<glm::vec4 *>(mapped.pData), 4};
+      verts[0]        = glm::mat4{cameraProjection} * glm::vec4{cMin.x, cMax.y, 0.0f, 1.0};
+      verts[1]        = glm::mat4{cameraProjection} * glm::vec4{cMin.x, cMin.y, 0.0f, 1.0};
+      verts[2]        = glm::mat4{cameraProjection} * glm::vec4{cMax.x, cMax.y, 0.0f, 1.0};
+      verts[3]        = glm::mat4{cameraProjection} * glm::vec4{cMax.x, cMin.y, 0.0f, 1.0};
+      ctx->Unmap(mQuadVertBuf.Get(), 0);
       // Note: we don't care if the transformed points go beyond the clipping planes, since we just
       // want the width and height for the raster texture
 
@@ -309,8 +378,9 @@ void Parallax::Draw(
   };
 
   DrawModel();
-  DrawBBDebug();
+  // DrawBBDebug();
   GetBoundingQuad();
+  DrawQuadDebug();
 }
 
 } // namespace methods
