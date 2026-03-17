@@ -34,8 +34,7 @@ VSOut VSMain(Vertex vertex)
 {
   VSOut ret = (VSOut)0;
 
-  //float4x4 mvp = mul(sceneData.mvp, perMesh.transform);
-  float4x4 mvp = sceneData.mvp;
+  float4x4 mvp = mul(sceneData.mvp, perMesh.transform);
   ret.pos      = mul(mvp, float4(vertex.pos, 1.0f));
   ret.color = vertex.color;
   return ret;
@@ -43,6 +42,6 @@ VSOut VSMain(Vertex vertex)
 
 float4 PSMain(VSOut vsOut) : SV_TARGET
 {
-  return 0.0.xxxx;
-  //return float4(vsOut.color, 1.0);
+  //return 0.0.xxxx;
+  return float4(vsOut.color, 1.0);
 }

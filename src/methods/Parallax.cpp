@@ -332,6 +332,7 @@ void Parallax::Draw(
     clipSpaceToPixelCoords[3][0] = width / 2.0;
     clipSpaceToPixelCoords[1][1] = height / 2.0;
     clipSpaceToPixelCoords[3][1] = height / 2.0;
+    const glm::dmat4 model       = glm::translate(glm::identity<glm::dmat4>(), modelPos);
 
     for (size_t i = 0; i < mScene.model.parts.size(); i++)
     {
@@ -342,8 +343,9 @@ void Parallax::Draw(
         const glm::vec4  transformedPosition =
           glm::vec4{glm::dmat4{data.modelView} * mBBTransforms[i] * position};
 
-        transformedVerts[vertIndex] = mvp * glm::vec4{position};
-        clipSpace[vertIndex]        = glm::vec2{transformedPosition} / transformedPosition.w;
+        transformedVerts[vertIndex] = model * mBBTransforms[i] * glm::vec4{position};
+        clipSpace[vertIndex] =
+          glm::vec2{clipSpaceToPixelCoords * transformedPosition} / transformedPosition.w;
       }
 
       glm::vec2 cMin{std::numeric_limits<f32>::max()};
@@ -354,14 +356,16 @@ void Parallax::Draw(
         cMax = glm::max(cMax, glm::vec2{p});
       }
 
+#if 0
       D3D11_MAPPED_SUBRESOURCE mapped{};
       dx::ThrowIfFailed(ctx->Map(mQuadVertBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
       std::span verts = {reinterpret_cast<glm::vec4 *>(mapped.pData), 4};
-      verts[0]        = glm::mat4{cameraProjection} * glm::vec4{cMin.x, cMax.y, 0.0f, 1.0};
-      verts[1]        = glm::mat4{cameraProjection} * glm::vec4{cMin.x, cMin.y, 0.0f, 1.0};
-      verts[2]        = glm::mat4{cameraProjection} * glm::vec4{cMax.x, cMax.y, 0.0f, 1.0};
-      verts[3]        = glm::mat4{cameraProjection} * glm::vec4{cMax.x, cMin.y, 0.0f, 1.0};
+      verts[0]        = /*glm::mat4{cameraProjection} **/ glm::vec4{cMin.x, cMax.y, 0.0f, 1.0};
+      verts[1]        = /*glm::mat4{cameraProjection} **/ glm::vec4{cMin.x, cMin.y, 0.0f, 1.0};
+      verts[2]        = /*glm::mat4{cameraProjection} **/ glm::vec4{cMax.x, cMax.y, 0.0f, 1.0};
+      verts[3]        = /*glm::mat4{cameraProjection} **/ glm::vec4{cMax.x, cMin.y, 0.0f, 1.0};
       ctx->Unmap(mQuadVertBuf.Get(), 0);
+#endif
       // Note: we don't care if the transformed points go beyond the clipping planes, since we just
       // want the width and height for the raster texture
 
@@ -370,15 +374,24 @@ void Parallax::Draw(
       for (const auto &p : clipSpace)
       {
         pMin = glm::min(pMin, p);
-        pMax = glm::min(pMax, p);
+        pMax = glm::max(pMax, p);
       }
+
+      D3D11_MAPPED_SUBRESOURCE mapped{};
+      dx::ThrowIfFailed(ctx->Map(mQuadVertBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
+      std::span verts = {reinterpret_cast<glm::vec4 *>(mapped.pData), 4};
+      verts[0] = glm::vec4{(pMin.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f, 1.0};
+      verts[1] = glm::vec4{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f, 1.0};
+      verts[2] = glm::vec4{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f, 1.0};
+      verts[3] = glm::vec4{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f, 1.0};
+      ctx->Unmap(mQuadVertBuf.Get(), 0);
 
       const glm::vec2 dim = pMax - pMin;
     }
   };
 
   DrawModel();
-  // DrawBBDebug();
+  DrawBBDebug();
   GetBoundingQuad();
   DrawQuadDebug();
 }

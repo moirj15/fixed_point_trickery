@@ -10,9 +10,9 @@ struct VSOut
 
 VSOut VSMain(Vertex vertex)
 {
-  VSOut ret = (VSOut)0;
+  VSOut ret = (VSOut) 0;
 
-  ret.pos      = vertex.pos;
+  ret.pos = vertex.pos;
   return ret;
 }
 
