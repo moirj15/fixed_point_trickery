@@ -53,6 +53,12 @@ class Parallax final
   ComPtr<ID3D11Buffer>              mQuadIndexBuf;
   RenderProgramHandle               mQuadDebugShadersHandle;
 
+  ComPtr<ID3D11Texture2D>          mQuadTexture;
+  ComPtr<ID3D11ShaderResourceView> mQuadView;
+  ComPtr<ID3D11RenderTargetView>   mQuadTarget;
+  ComPtr<ID3D11Texture2D>          mQuadDepth;
+  ComPtr<ID3D11DepthStencilView>   mQuadDepthView;
+
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
 

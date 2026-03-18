@@ -5,6 +5,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <imgui.h>
 
 namespace methods
 {
@@ -151,6 +152,65 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   std::array<u32, 6> quadIndices = {0, 1, 2, 2, 1, 3};
 
   mQuadIndexBuf = dx::CreateIndexBuffer<u32>(mDevice, 6, quadIndices);
+
+  D3D11_TEXTURE2D_DESC quadTextureDesc = {
+    .Width     = 1920,
+    .Height    = 1080,
+    .MipLevels = 1,
+    .ArraySize = 1,
+    .Format    = DXGI_FORMAT_R8G8B8A8_UNORM,
+    // Multi sampling here
+    .SampleDesc =
+      {
+        .Count   = 1,
+        .Quality = 0,
+      },
+    .Usage          = D3D11_USAGE_DEFAULT,
+    .BindFlags      = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
+    .CPUAccessFlags = 0,
+    .MiscFlags      = 0,
+  };
+
+  dx::ThrowIfFailed(
+    device->CreateTexture2D(&quadTextureDesc, nullptr, mQuadTexture.GetAddressOf()));
+
+  D3D11_SHADER_RESOURCE_VIEW_DESC quadViewDesc = {
+    .Format        = quadTextureDesc.Format,
+    .ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D,
+    .Texture2D =
+      {
+        .MostDetailedMip = 0,
+        .MipLevels       = 1,
+      },
+  };
+
+  dx::ThrowIfFailed(
+    device->CreateShaderResourceView(mQuadTexture.Get(), &quadViewDesc, mQuadView.GetAddressOf()));
+
+  dx::ThrowIfFailed(
+    device->CreateRenderTargetView(mQuadTexture.Get(), nullptr, mQuadTarget.GetAddressOf()));
+
+  D3D11_TEXTURE2D_DESC quadDepthDesc = {
+    .Width     = 1920,
+    .Height    = 1080,
+    .MipLevels = 1,
+    .ArraySize = 1,
+    .Format    = DXGI_FORMAT_D24_UNORM_S8_UINT,
+    // Multi sampling here
+    .SampleDesc =
+      {
+        .Count   = 1,
+        .Quality = 0,
+      },
+    .Usage          = D3D11_USAGE_DEFAULT,
+    .BindFlags      = D3D11_BIND_DEPTH_STENCIL,
+    .CPUAccessFlags = 0,
+    .MiscFlags      = 0,
+  };
+
+  dx::ThrowIfFailed(device->CreateTexture2D(&quadDepthDesc, 0, mQuadDepth.GetAddressOf()));
+  dx::ThrowIfFailed(
+    device->CreateDepthStencilView(mQuadDepth.Get(), 0, mQuadDepthView.GetAddressOf()));
 }
 
 void Parallax::SetScene(const Scene &scene)
@@ -389,12 +449,45 @@ void Parallax::Draw(
       ctx->Unmap(mQuadVertBuf.Get(), 0);
     }
     const glm::vec2 dim = pMax - pMin;
+    return glm::uvec2{dim};
+  };
+
+  auto RenderToQuad = [&](glm::uvec2 size) {
+    RenderProgram        rp           = shaderWatcher.GetRenderProgram(mShadersHandle);
+    ID3D11DeviceContext *ctx          = renderContext.DeviceContext();
+    f32                  clearColor[] = {0.5, 0.5, 0.5, 1.0};
+    ctx->ClearRenderTargetView(mQuadTarget.Get(), clearColor);
+    ctx->ClearDepthStencilView(mQuadDepthView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+    u32 stride = sizeof(VertexFormat);
+    u32 offset = 0;
+    ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
+    ctx->IASetInputLayout(rp.inputLayout);
+    ctx->VSSetShader(rp.vertexShader, nullptr, 0);
+    ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
+
+    ctx->RSSetState(renderContext.rasterizerState.Get());
+
+    ctx->PSSetShader(rp.pixelShader, nullptr, 0);
+    ctx->OMSetRenderTargets(1, mQuadTarget.GetAddressOf(), mQuadDepthView.Get());
+    for (u32 i = 0; i < mDraws.size(); i++)
+    {
+      const DrawOffsets draw = mDraws[i];
+      ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
+      ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
+    }
   };
 
   DrawModel();
   DrawBBDebug();
-  GetBoundingQuad();
+  const glm::uvec2 size = GetBoundingQuad();
+  ImGui::Text("Quad Size: (%d, %d)", size.x, size.y);
+  // Need to have logic for when the quad is larger than the screen.
+  // When that occurs, clamp the texture size to the screen size, but still render to the quad
   DrawQuadDebug();
+  RenderToQuad(size);
 }
 
 } // namespace methods
