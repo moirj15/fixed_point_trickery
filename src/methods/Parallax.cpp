@@ -63,7 +63,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
         {
           .SemanticName         = "POSITION",
           .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32_UINT,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
           .AlignedByteOffset    = offsetof(VertexFormat, position),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
@@ -203,9 +203,11 @@ void Parallax::SetScene(const Scene &scene)
     PerMeshData data{
       .transform = scene.model.transforms[i],
     };
-    PerMeshData bbDebugData{
-      .transform =
-        glm::scale(scene.model.transforms[i], scene.model.parts[i].boundingBox.GetScale()),
+    const BoundingBox &bb = scene.model.parts[i].boundingBox;
+    PerMeshData        bbDebugData{
+             .transform = glm::translate(
+        glm::scale(scene.model.transforms[i], bb.GetScale()),
+        glm::vec3{bb.max + bb.min} / 2.0f),
     };
     mBBTransforms.emplace_back(bbDebugData.transform);
     mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
@@ -334,6 +336,8 @@ void Parallax::Draw(
     clipSpaceToPixelCoords[3][1] = height / 2.0;
     const glm::dmat4 model       = glm::translate(glm::identity<glm::dmat4>(), modelPos);
 
+    glm::vec2 pMin{std::numeric_limits<f32>::max()};
+    glm::vec2 pMax{std::numeric_limits<f32>::min()};
     for (size_t i = 0; i < mScene.model.parts.size(); i++)
     {
       const glm::dmat4 mvp = cameraProjection * glm::dmat4{data.modelView} * mBBTransforms[i];
@@ -369,8 +373,6 @@ void Parallax::Draw(
       // Note: we don't care if the transformed points go beyond the clipping planes, since we just
       // want the width and height for the raster texture
 
-      glm::vec2 pMin{std::numeric_limits<f32>::max()};
-      glm::vec2 pMax{std::numeric_limits<f32>::min()};
       for (const auto &p : clipSpace)
       {
         pMin = glm::min(pMin, p);
@@ -385,9 +387,8 @@ void Parallax::Draw(
       verts[2] = glm::vec4{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f, 1.0};
       verts[3] = glm::vec4{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f, 1.0};
       ctx->Unmap(mQuadVertBuf.Get(), 0);
-
-      const glm::vec2 dim = pMax - pMin;
     }
+    const glm::vec2 dim = pMax - pMin;
   };
 
   DrawModel();
