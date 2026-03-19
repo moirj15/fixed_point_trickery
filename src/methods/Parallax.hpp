@@ -24,6 +24,9 @@ class Parallax final
   const std::string QUAD_DEBUG_VERT_PATH  = "shaders/PassThrough.hlsl";
   const std::string QUAD_DEBUG_PIXEL_PATH = "shaders/PassThrough.hlsl";
 
+  const std::string TEXTURED_QUAD_VERT_PATH = "shaders/TexturedQuad.hlsl";
+  const std::string TEXTURED_QUAD_VERT_PATH = "shaders/TexturedQuad.hlsl";
+
   struct DrawOffsets
   {
     u32 startIndex{};
@@ -58,6 +61,9 @@ class Parallax final
   ComPtr<ID3D11RenderTargetView>   mQuadTarget;
   ComPtr<ID3D11Texture2D>          mQuadDepth;
   ComPtr<ID3D11DepthStencilView>   mQuadDepthView;
+
+  RenderProgramHandle        mTexQuadShaderHandle;
+  ComPtr<ID3D11SamplerState> mTexQuadSamplerState;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);

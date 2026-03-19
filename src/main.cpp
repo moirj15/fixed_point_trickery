@@ -71,7 +71,8 @@ int main(int argc, char **argv)
 
   ShaderWatcher shaderWatcher{ctx.Device()};
 
-  glm::dmat4    projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
+  glm::dmat4 projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
+
   ArcballCamera arcballCamera{
     glm::dvec3{0.0, 0.0, 5.0},
     glm::dvec3{0.0, 0.0, -1.0},

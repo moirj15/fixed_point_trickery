@@ -130,6 +130,29 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
+      })},
+    mTexQuadShaderHandle{shaderWatcher.RegisterShader(
+      TEXTURED_QUAD_VERT_PATH,
+      TEXTURED_QUAD_PIXEL_PATH,
+      {
+        {
+          .SemanticName         = "POSITION",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32A32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = 0,
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+        {
+          .SemanticName         = "TEXCOORD",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = 0,
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        }, // todo rest of init
       })}
 {
   mBBDebugIndexCount = sBBIndices.size();
@@ -211,6 +234,9 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   dx::ThrowIfFailed(device->CreateTexture2D(&quadDepthDesc, 0, mQuadDepth.GetAddressOf()));
   dx::ThrowIfFailed(
     device->CreateDepthStencilView(mQuadDepth.Get(), 0, mQuadDepthView.GetAddressOf()));
+
+  CD3D11_SAMPLER_DESC samplerDesc{};
+  dx::ThrowIfFailed(device->CreateSamplerState(&samplerDesc, mTexQuadSamplerState.GetAddressOf()));
 }
 
 void Parallax::SetScene(const Scene &scene)
@@ -478,6 +504,42 @@ void Parallax::Draw(
       ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
       ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
     }
+    ctx->OMSetRenderTargets(
+      1,
+      renderContext.backbufferRTV.GetAddressOf(),
+      renderContext.depthStencilView.Get());
+  };
+
+  auto DrawTexturedQuad = [&]() {
+    RenderProgram        rp           = shaderWatcher.GetRenderProgram(mShadersHandle);
+    ID3D11DeviceContext *ctx          = renderContext.DeviceContext();
+    f32                  clearColor[] = {0.5, 0.5, 0.5, 1.0};
+    ctx->ClearRenderTargetView(mQuadTarget.Get(), clearColor);
+    ctx->ClearDepthStencilView(mQuadDepthView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+    u32 stride = sizeof(VertexFormat);
+    u32 offset = 0;
+    ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
+    ctx->IASetInputLayout(rp.inputLayout);
+    ctx->VSSetShader(rp.vertexShader, nullptr, 0);
+    ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
+
+    ctx->RSSetState(renderContext.rasterizerState.Get());
+
+    ctx->PSSetShader(rp.pixelShader, nullptr, 0);
+    ctx->OMSetRenderTargets(1, mQuadTarget.GetAddressOf(), mQuadDepthView.Get());
+    for (u32 i = 0; i < mDraws.size(); i++)
+    {
+      const DrawOffsets draw = mDraws[i];
+      ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
+      ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
+    }
+    ctx->OMSetRenderTargets(
+      1,
+      renderContext.backbufferRTV.GetAddressOf(),
+      renderContext.depthStencilView.Get());
   };
 
   DrawModel();
