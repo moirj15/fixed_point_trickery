@@ -162,6 +162,10 @@ RenderContext InitContext(const Window &window)
   ThrowIfFailed(
     context.Device()->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &opt, sizeof(opt)));
 
+  ThrowIfFailed(context.DeviceContext()->QueryInterface(
+    __uuidof(ID3DUserDefinedAnnotation),
+    (void **)context.annotation.GetAddressOf()));
+
   return context;
 }
 

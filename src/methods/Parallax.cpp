@@ -28,6 +28,17 @@ struct BBDebugVertex
   glm::vec3 color;
 };
 
+struct TexturedQuadVertex
+{
+  glm::vec3 position;
+  glm::vec2 texCoord;
+};
+
+struct TextureQuadCB
+{
+  glm::mat4 mvp;
+};
+
 static std::vector<BBDebugVertex> sBBVertices = {
   {{-1.0f, 1.0f, -1.0f}, {0, 0, 1}},
   {{1.0f, 1.0f, -1.0f}, {0, 1, 0}},
@@ -153,7 +164,8 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         }, // todo rest of init
-      })}
+      })},
+    mTexQuadConstantBuf{dx::CreateConstantBuffer<TextureQuadCB>(device, nullptr)}
 {
   mBBDebugIndexCount = sBBIndices.size();
 
@@ -235,8 +247,16 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   dx::ThrowIfFailed(
     device->CreateDepthStencilView(mQuadDepth.Get(), 0, mQuadDepthView.GetAddressOf()));
 
-  CD3D11_SAMPLER_DESC samplerDesc{};
+  CD3D11_SAMPLER_DESC samplerDesc{CD3D11_DEFAULT{}};
   dx::ThrowIfFailed(device->CreateSamplerState(&samplerDesc, mTexQuadSamplerState.GetAddressOf()));
+
+  std::array<TexturedQuadVertex, 4> texQuadVerts = {
+    TexturedQuadVertex{{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    TexturedQuadVertex{{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+    TexturedQuadVertex{{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    TexturedQuadVertex{{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
+  };
+  mTexturedQuadVertBuf = dx::CreateVertexBuffer<TexturedQuadVertex>(mDevice, 4, texQuadVerts);
 }
 
 void Parallax::SetScene(const Scene &scene)
@@ -311,6 +331,7 @@ void Parallax::Draw(
   dx::RenderContext    &renderContext,
   ShaderWatcher        &shaderWatcher)
 {
+  auto *annotation = renderContext.annotation.Get();
 
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
@@ -328,6 +349,7 @@ void Parallax::Draw(
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 
   const auto DrawModel = [&]() {
+    annotation->BeginEvent(L"DrawModel");
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
     ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
@@ -353,9 +375,11 @@ void Parallax::Draw(
       ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
       ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
     }
+    annotation->EndEvent();
   };
 
   const auto DrawBBDebug = [&]() {
+    annotation->BeginEvent(L"DrawBBDebug");
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mBBDebugShadersHandle);
     ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
@@ -381,9 +405,11 @@ void Parallax::Draw(
       ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
       ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
     }
+    annotation->EndEvent();
   };
 
   const auto DrawQuadDebug = [&]() {
+    annotation->BeginEvent(L"DrawQuadDebug");
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mQuadDebugShadersHandle);
     ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
@@ -409,6 +435,7 @@ void Parallax::Draw(
       // ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
       ctx->DrawIndexed(6, 0, 0);
     }
+    annotation->EndEvent();
   };
 
   const auto GetBoundingQuad = [&]() {
@@ -456,8 +483,8 @@ void Parallax::Draw(
       verts[3]        = /*glm::mat4{cameraProjection} **/ glm::vec4{cMax.x, cMin.y, 0.0f, 1.0};
       ctx->Unmap(mQuadVertBuf.Get(), 0);
 #endif
-      // Note: we don't care if the transformed points go beyond the clipping planes, since we just
-      // want the width and height for the raster texture
+      // Note: we don't care if the transformed points go beyond the clipping planes, since we
+      // just want the width and height for the raster texture
 
       for (const auto &p : clipSpace)
       {
@@ -479,6 +506,7 @@ void Parallax::Draw(
   };
 
   auto RenderToQuad = [&](glm::uvec2 size) {
+    annotation->BeginEvent(L"RenderToQuad");
     RenderProgram        rp           = shaderWatcher.GetRenderProgram(mShadersHandle);
     ID3D11DeviceContext *ctx          = renderContext.DeviceContext();
     f32                  clearColor[] = {0.5, 0.5, 0.5, 1.0};
@@ -504,52 +532,61 @@ void Parallax::Draw(
       ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
       ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
     }
-    ctx->OMSetRenderTargets(
-      1,
-      renderContext.backbufferRTV.GetAddressOf(),
-      renderContext.depthStencilView.Get());
+    ID3D11RenderTargetView *np = nullptr;
+    ctx->OMSetRenderTargets(1, &np, nullptr);
+    // ctx->OMSetRenderTargets(
+    //   1,
+    //   renderContext.backbufferRTV.GetAddressOf(),
+    //   renderContext.depthStencilView.Get());
+    annotation->EndEvent();
   };
 
   auto DrawTexturedQuad = [&]() {
-    RenderProgram        rp           = shaderWatcher.GetRenderProgram(mShadersHandle);
-    ID3D11DeviceContext *ctx          = renderContext.DeviceContext();
-    f32                  clearColor[] = {0.5, 0.5, 0.5, 1.0};
-    ctx->ClearRenderTargetView(mQuadTarget.Get(), clearColor);
-    ctx->ClearDepthStencilView(mQuadDepthView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+    annotation->BeginEvent(L"DrawTexturedQuad");
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    dx::ThrowIfFailed(
+      ctx->Map(mTexQuadConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
+    TextureQuadCB *data = reinterpret_cast<TextureQuadCB *>(mapped.pData);
+    data->mvp =
+      cameraProjection * glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
+    ctx->Unmap(mTexQuadConstantBuf.Get(), 0);
+
+    RenderProgram        rp  = shaderWatcher.GetRenderProgram(mTexQuadShaderHandle);
+    ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
-    u32 stride = sizeof(VertexFormat);
+    ctx->IASetIndexBuffer(mQuadIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+    u32 stride = sizeof(TexturedQuadVertex);
     u32 offset = 0;
-    ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
+    ctx->IASetVertexBuffers(0, 1, mTexturedQuadVertBuf.GetAddressOf(), &stride, &offset);
     ctx->IASetInputLayout(rp.inputLayout);
     ctx->VSSetShader(rp.vertexShader, nullptr, 0);
-    ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
+    ctx->VSSetConstantBuffers(0, 1, mTexQuadConstantBuf.GetAddressOf());
 
     ctx->RSSetState(renderContext.rasterizerState.Get());
 
     ctx->PSSetShader(rp.pixelShader, nullptr, 0);
-    ctx->OMSetRenderTargets(1, mQuadTarget.GetAddressOf(), mQuadDepthView.Get());
-    for (u32 i = 0; i < mDraws.size(); i++)
-    {
-      const DrawOffsets draw = mDraws[i];
-      ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
-      ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
-    }
+    ctx->PSSetShaderResources(0, 1, mQuadView.GetAddressOf());
+    ctx->PSSetSamplers(0, 1, mTexQuadSamplerState.GetAddressOf());
     ctx->OMSetRenderTargets(
       1,
       renderContext.backbufferRTV.GetAddressOf(),
       renderContext.depthStencilView.Get());
+    ctx->DrawIndexed(6, 0, 0);
+    ID3D11ShaderResourceView *np = nullptr;
+    ctx->PSSetShaderResources(0, 1, &np);
+    annotation->EndEvent();
   };
 
-  DrawModel();
-  DrawBBDebug();
+  // DrawModel();
+  // DrawBBDebug();
   const glm::uvec2 size = GetBoundingQuad();
   ImGui::Text("Quad Size: (%d, %d)", size.x, size.y);
   // Need to have logic for when the quad is larger than the screen.
   // When that occurs, clamp the texture size to the screen size, but still render to the quad
   DrawQuadDebug();
   RenderToQuad(size);
+  DrawTexturedQuad();
 }
 
 } // namespace methods

@@ -2,6 +2,7 @@
 
 #include "utils.hpp"
 
+#include <d3d11_1.h>
 #include <d3d11_3.h>
 #include <d3d11shader.h>
 #include <d3dcompiler.h>
@@ -78,11 +79,12 @@ struct RenderContext
   ComPtr<ID3D11DeviceContext3>  context;
   ComPtr<ID3D11RasterizerState> rasterizerState;
 
-  ComPtr<IDXGISwapChain>         swapchain;
-  ComPtr<ID3D11Texture2D>        backbuffer;
-  ComPtr<ID3D11RenderTargetView> backbufferRTV;
-  ComPtr<ID3D11Texture2D>        depthStencilBuffer;
-  ComPtr<ID3D11DepthStencilView> depthStencilView;
+  ComPtr<IDXGISwapChain>            swapchain;
+  ComPtr<ID3D11Texture2D>           backbuffer;
+  ComPtr<ID3D11RenderTargetView>    backbufferRTV;
+  ComPtr<ID3D11Texture2D>           depthStencilBuffer;
+  ComPtr<ID3D11DepthStencilView>    depthStencilView;
+  ComPtr<ID3DUserDefinedAnnotation> annotation;
 
   ID3D11Device3 *Device() const
   {

@@ -64,6 +64,8 @@ class Parallax final
 
   RenderProgramHandle        mTexQuadShaderHandle;
   ComPtr<ID3D11SamplerState> mTexQuadSamplerState;
+  ComPtr<ID3D11Buffer>       mTexturedQuadVertBuf; // reuse mQuadIndexBUf
+  ComPtr<ID3D11Buffer>       mTexQuadConstantBuf;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
