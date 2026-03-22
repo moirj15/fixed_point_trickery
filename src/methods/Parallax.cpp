@@ -149,9 +149,9 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
         {
           .SemanticName         = "POSITION",
           .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32A32_FLOAT,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = 0,
+          .AlignedByteOffset    = offsetof(TexturedQuadVertex, position),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -160,7 +160,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = 0,
+          .AlignedByteOffset    = offsetof(TexturedQuadVertex, texCoord),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         }, // todo rest of init
@@ -257,6 +257,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     TexturedQuadVertex{{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
   };
   mTexturedQuadVertBuf = dx::CreateVertexBuffer<TexturedQuadVertex>(mDevice, 4, texQuadVerts);
+  mQuadTargetCB        = dx::CreateConstantBuffer<SceneData>(mDevice, nullptr);
 }
 
 void Parallax::SetScene(const Scene &scene)
@@ -328,6 +329,7 @@ void Parallax::Draw(
   ID3D11DeviceContext3 *ctx,
   const glm::dmat4     &cameraProjection,
   const glm::dvec3     &modelPos,
+  const glm::dvec3     &cameraPos,
   dx::RenderContext    &renderContext,
   ShaderWatcher        &shaderWatcher)
 {
@@ -438,6 +440,11 @@ void Parallax::Draw(
     annotation->EndEvent();
   };
 
+  struct BoundingQuad
+  {
+    glm::uvec2 pixelDim;
+    glm::vec2  worldSpaceScale;
+  };
   const auto GetBoundingQuad = [&]() {
     std::array<glm::vec2, 8> clipSpace;
     std::array<glm::vec3, 8> transformedVerts;
@@ -451,6 +458,8 @@ void Parallax::Draw(
 
     glm::vec2 pMin{std::numeric_limits<f32>::max()};
     glm::vec2 pMax{std::numeric_limits<f32>::min()};
+    glm::vec2 cMin{std::numeric_limits<f32>::max()};
+    glm::vec2 cMax{std::numeric_limits<f32>::min()};
     for (size_t i = 0; i < mScene.model.parts.size(); i++)
     {
       const glm::dmat4 mvp = cameraProjection * glm::dmat4{data.modelView} * mBBTransforms[i];
@@ -465,8 +474,6 @@ void Parallax::Draw(
           glm::vec2{clipSpaceToPixelCoords * transformedPosition} / transformedPosition.w;
       }
 
-      glm::vec2 cMin{std::numeric_limits<f32>::max()};
-      glm::vec2 cMax{std::numeric_limits<f32>::min()};
       for (const auto &p : transformedVerts)
       {
         cMin = glm::min(cMin, glm::vec2{p});
@@ -502,14 +509,27 @@ void Parallax::Draw(
       ctx->Unmap(mQuadVertBuf.Get(), 0);
     }
     const glm::vec2 dim = pMax - pMin;
-    return glm::uvec2{dim};
+    return BoundingQuad{glm::uvec2{dim}, cMax - cMin};
   };
+
+  const BoundingQuad boundingQuad = GetBoundingQuad();
 
   auto RenderToQuad = [&](glm::uvec2 size) {
     annotation->BeginEvent(L"RenderToQuad");
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    dx::ThrowIfFailed(ctx->Map(mQuadTargetCB.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
+    auto     *sceneData  = reinterpret_cast<SceneData *>(mapped.pData);
+    glm::mat4 transform  = glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
+    const f32 dist       = glm::length(cameraPos - modelPos);
+    transform            = glm::scale(transform, glm::vec3(dist));
+    sceneData->modelView = glm::mat4{cameraProjection} * transform;
+
+    ctx->Unmap(mQuadTargetCB.Get(), 0);
+
     RenderProgram        rp           = shaderWatcher.GetRenderProgram(mShadersHandle);
     ID3D11DeviceContext *ctx          = renderContext.DeviceContext();
-    f32                  clearColor[] = {0.5, 0.5, 0.5, 1.0};
+    f32                  clearColor[] = {0.0, 0.0, 0.0, 1.0};
     ctx->ClearRenderTargetView(mQuadTarget.Get(), clearColor);
     ctx->ClearDepthStencilView(mQuadDepthView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
 
@@ -520,7 +540,7 @@ void Parallax::Draw(
     ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
     ctx->IASetInputLayout(rp.inputLayout);
     ctx->VSSetShader(rp.vertexShader, nullptr, 0);
-    ctx->VSSetConstantBuffers(0, 1, mConstantBuf.GetAddressOf());
+    ctx->VSSetConstantBuffers(0, 1, mQuadTargetCB.GetAddressOf());
 
     ctx->RSSetState(renderContext.rasterizerState.Get());
 
@@ -543,12 +563,17 @@ void Parallax::Draw(
 
   auto DrawTexturedQuad = [&]() {
     annotation->BeginEvent(L"DrawTexturedQuad");
+
     D3D11_MAPPED_SUBRESOURCE mapped{};
     dx::ThrowIfFailed(
       ctx->Map(mTexQuadConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
-    TextureQuadCB *data = reinterpret_cast<TextureQuadCB *>(mapped.pData);
-    data->mvp =
-      cameraProjection * glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
+    TextureQuadCB *data      = reinterpret_cast<TextureQuadCB *>(mapped.pData);
+    glm::mat4      transform = glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
+    const f32      dist      = glm::length(cameraPos - modelPos);
+    // transform                = glm::scale(
+    //   transform,
+    //   glm::vec3{boundingQuad.worldSpaceScale.x, boundingQuad.worldSpaceScale.y, 1.0} / dist);
+    data->mvp = glm::mat4{cameraProjection} * transform;
     ctx->Unmap(mTexQuadConstantBuf.Get(), 0);
 
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mTexQuadShaderHandle);
@@ -580,12 +605,11 @@ void Parallax::Draw(
 
   // DrawModel();
   // DrawBBDebug();
-  const glm::uvec2 size = GetBoundingQuad();
-  ImGui::Text("Quad Size: (%d, %d)", size.x, size.y);
+  ImGui::Text("Quad Size: (%d, %d)", boundingQuad.pixelDim.x, boundingQuad.pixelDim.y);
   // Need to have logic for when the quad is larger than the screen.
   // When that occurs, clamp the texture size to the screen size, but still render to the quad
   DrawQuadDebug();
-  RenderToQuad(size);
+  RenderToQuad(boundingQuad.pixelDim);
   DrawTexturedQuad();
 }
 

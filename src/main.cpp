@@ -94,7 +94,7 @@ int main(int argc, char **argv)
   };
 
   u32         currTime{}, lastTime{};
-  Method      method{};
+  Method      method{Method::Parallax};
   SceneModel  currentModel{};
   std::string currentModelPath;
   Model       model = LoadModel("models/suzanne.glb");
@@ -273,6 +273,7 @@ int main(int argc, char **argv)
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos},
+        glm::dvec3{arcballCamera.eye()},
         ctx,
         shaderWatcher);
       break;

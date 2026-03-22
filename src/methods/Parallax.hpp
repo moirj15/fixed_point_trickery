@@ -52,15 +52,17 @@ class Parallax final
   u32                               mBBDebugIndexCount;
   ComPtr<ID3D11RasterizerState>     mBBDebugRSState;
   std::vector<glm::dmat4>           mBBTransforms;
-  ComPtr<ID3D11Buffer>              mQuadVertBuf;
-  ComPtr<ID3D11Buffer>              mQuadIndexBuf;
-  RenderProgramHandle               mQuadDebugShadersHandle;
+
+  ComPtr<ID3D11Buffer> mQuadVertBuf;
+  ComPtr<ID3D11Buffer> mQuadIndexBuf;
+  RenderProgramHandle  mQuadDebugShadersHandle;
 
   ComPtr<ID3D11Texture2D>          mQuadTexture;
   ComPtr<ID3D11ShaderResourceView> mQuadView;
   ComPtr<ID3D11RenderTargetView>   mQuadTarget;
   ComPtr<ID3D11Texture2D>          mQuadDepth;
   ComPtr<ID3D11DepthStencilView>   mQuadDepthView;
+  ComPtr<ID3D11Buffer>             mQuadTargetCB;
 
   RenderProgramHandle        mTexQuadShaderHandle;
   ComPtr<ID3D11SamplerState> mTexQuadSamplerState;
@@ -78,6 +80,7 @@ public:
     ID3D11DeviceContext3 *ctx,
     const glm::dmat4     &cameraProjection,
     const glm::dvec3     &modelPos,
+    const glm::dvec3     &cameraPos,
     dx::RenderContext    &renderContext,
     ShaderWatcher        &shaderWatcher);
 };
