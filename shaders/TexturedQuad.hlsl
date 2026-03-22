@@ -13,6 +13,7 @@ struct VSOut
 struct Scene 
 {
   float4x4 mvp;
+  float2 scale;
 };
 
 cbuffer Constants : register(b0)
@@ -25,8 +26,9 @@ VSOut VSMain(Vertex vertex)
 {
   VSOut ret = (VSOut) 0;
 
-  ret.pos = mul(scene.mvp, float4(vertex.pos, 1.0));
-  ret.texCoord = vertex.texCoord;
+  //ret.pos = mul(scene.mvp, float4(vertex.pos, 1.0));
+  ret.pos = float4(vertex.pos, 1.0);
+  ret.texCoord = vertex.texCoord;// * scene.scale;
   return ret;
 }
 

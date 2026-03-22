@@ -37,6 +37,7 @@ struct TexturedQuadVertex
 struct TextureQuadCB
 {
   glm::mat4 mvp;
+  glm::vec2 scale;
 };
 
 static std::vector<BBDebugVertex> sBBVertices = {
@@ -256,7 +257,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     TexturedQuadVertex{{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
     TexturedQuadVertex{{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
   };
-  mTexturedQuadVertBuf = dx::CreateVertexBuffer<TexturedQuadVertex>(mDevice, 4, texQuadVerts);
+  mTexturedQuadVertBuf = dx::CreateVertexBuffer<TexturedQuadVertex>(mDevice, 4, texQuadVerts, true);
   mQuadTargetCB        = dx::CreateConstantBuffer<SceneData>(mDevice, nullptr);
 }
 
@@ -444,6 +445,8 @@ void Parallax::Draw(
   {
     glm::uvec2 pixelDim;
     glm::vec2  worldSpaceScale;
+    glm::uvec2 pixelMax;
+    glm::uvec2 pixelMin;
   };
   const auto GetBoundingQuad = [&]() {
     std::array<glm::vec2, 8> clipSpace;
@@ -509,7 +512,7 @@ void Parallax::Draw(
       ctx->Unmap(mQuadVertBuf.Get(), 0);
     }
     const glm::vec2 dim = pMax - pMin;
-    return BoundingQuad{glm::uvec2{dim}, cMax - cMin};
+    return BoundingQuad{glm::uvec2{dim}, cMax - cMin, pMax, pMin};
   };
 
   const BoundingQuad boundingQuad = GetBoundingQuad();
@@ -519,10 +522,10 @@ void Parallax::Draw(
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     dx::ThrowIfFailed(ctx->Map(mQuadTargetCB.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
-    auto     *sceneData  = reinterpret_cast<SceneData *>(mapped.pData);
-    glm::mat4 transform  = glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
-    const f32 dist       = glm::length(cameraPos - modelPos);
-    transform            = glm::scale(transform, glm::vec3(dist));
+    auto     *sceneData = reinterpret_cast<SceneData *>(mapped.pData);
+    glm::mat4 transform = glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
+    const f32 dist      = glm::length(cameraPos - modelPos);
+    // transform            = glm::scale(transform, glm::vec3(dist));
     sceneData->modelView = glm::mat4{cameraProjection} * transform;
 
     ctx->Unmap(mQuadTargetCB.Get(), 0);
@@ -573,8 +576,31 @@ void Parallax::Draw(
     // transform                = glm::scale(
     //   transform,
     //   glm::vec3{boundingQuad.worldSpaceScale.x, boundingQuad.worldSpaceScale.y, 1.0} / dist);
-    data->mvp = glm::mat4{cameraProjection} * transform;
+    data->mvp   = glm::mat4{cameraProjection} * transform;
+    data->scale = glm::vec2(1.0 / dist);
     ctx->Unmap(mTexQuadConstantBuf.Get(), 0);
+
+    D3D11_MAPPED_SUBRESOURCE mappedVB{};
+    dx::ThrowIfFailed(
+      ctx->Map(mTexturedQuadVertBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mappedVB));
+
+    std::span<TexturedQuadVertex> v = {reinterpret_cast<TexturedQuadVertex *>(mappedVB.pData), 4};
+
+    glm::vec2 texMin = glm::vec2{boundingQuad.pixelMin} / glm::vec2(1920.0, 1080.0);
+    glm::vec2 texMax = glm::vec2{boundingQuad.pixelMax} / glm::vec2(1920.0, 1080.0);
+    glm::vec2 pMin   = boundingQuad.pixelMin;
+    glm::vec2 pMax   = boundingQuad.pixelMax;
+
+    v[0].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
+    v[1].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
+    v[2].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
+    v[3].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
+    v[0].texCoord = {texMin.x, texMin.y};
+    v[1].texCoord = {texMin.x, texMax.y};
+    v[2].texCoord = {texMax.x, texMin.y};
+    v[3].texCoord = {texMax.x, texMax.y};
+
+    ctx->Unmap(mTexturedQuadVertBuf.Get(), 0);
 
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mTexQuadShaderHandle);
     ID3D11DeviceContext *ctx = renderContext.DeviceContext();
