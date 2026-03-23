@@ -276,6 +276,7 @@ int main(int argc, char **argv)
         projection,
         glm::dvec3{modelPos},
         glm::dvec3{arcballCamera.eye()},
+        arcballCamera,
         ctx,
         shaderWatcher);
       break;

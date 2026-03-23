@@ -26,8 +26,8 @@ VSOut VSMain(Vertex vertex)
 {
   VSOut ret = (VSOut) 0;
 
-  //ret.pos = mul(scene.mvp, float4(vertex.pos, 1.0));
-  ret.pos = float4(vertex.pos, 1.0);
+  ret.pos = mul(scene.mvp, float4(vertex.pos, 1.0));
+  //ret.pos = float4(vertex.pos, 1.0);
   ret.texCoord = vertex.texCoord;// * scene.scale;
   return ret;
 }

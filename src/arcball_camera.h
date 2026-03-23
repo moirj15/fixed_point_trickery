@@ -28,7 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * where the top-left of the screen corresponds to [-1, 1], and the bottom
  * right is [1, -1].
  */
-class ArcballCamera
+struct ArcballCamera
 {
   // We store the unmodified look at matrix along with
   // decomposed translation and rotation components

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../arcball_camera.h"
 #include "../dx.hpp"
 #include "../scene.hpp"
 #include "../shaderWatcher.hpp"
@@ -83,6 +84,7 @@ public:
     const glm::dmat4     &projection,
     const glm::dvec3     &modelPos,
     const glm::dvec3     &cameraPos,
+    const ArcballCamera  &arcball,
     dx::RenderContext    &renderContext,
     ShaderWatcher        &shaderWatcher);
 };

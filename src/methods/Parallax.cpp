@@ -333,6 +333,7 @@ void Parallax::Draw(
   const glm::dmat4     &projection,
   const glm::dvec3     &modelPos,
   const glm::dvec3     &cameraPos,
+  const ArcballCamera  &arcball,
   dx::RenderContext    &renderContext,
   ShaderWatcher        &shaderWatcher)
 {
@@ -522,6 +523,12 @@ void Parallax::Draw(
   auto RenderToQuad = [&](glm::uvec2 size) {
     annotation->BeginEvent(L"RenderToQuad");
 
+    f32 l = glm::length(cameraPos - mScene.model.position);
+
+    glm::vec3 cameraOffset{0.0f, 0.0f, l};
+    glm::vec3 camPos = glm::mat4_cast(arcball.rotation) * glm::vec4{cameraOffset, 1.0};
+    glm::mat4 c      = glm::lookAt(camPos, glm::vec3{mScene.model.position}, glm::vec3{0, 1, 0});
+
     D3D11_MAPPED_SUBRESOURCE mapped{};
     dx::ThrowIfFailed(ctx->Map(mQuadTargetCB.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
     auto     *sceneData = reinterpret_cast<SceneData *>(mapped.pData);
@@ -533,6 +540,7 @@ void Parallax::Draw(
       glm::translate(glm::mat4(1.0), glm::vec3{-screenCenter.x, -screenCenter.y, 1.0});
     sceneData->modelView =
       glm::mat4{projection} /** centerTransform*/ * glm::mat4{camera} * transform;
+    // sceneData->modelView = glm::mat4{projection} /** centerTransform*/ * c * transform;
 
     ctx->Unmap(mQuadTargetCB.Get(), 0);
 
@@ -576,13 +584,38 @@ void Parallax::Draw(
     D3D11_MAPPED_SUBRESOURCE mapped{};
     dx::ThrowIfFailed(
       ctx->Map(mTexQuadConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
-    TextureQuadCB *data      = reinterpret_cast<TextureQuadCB *>(mapped.pData);
-    glm::mat4      transform = glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
-    const f32      dist      = glm::length(cameraPos - modelPos);
+    TextureQuadCB *data = reinterpret_cast<TextureQuadCB *>(mapped.pData);
+    glm::vec3  s = mScene.model.parts[0].boundingBox.max - mScene.model.parts[0].boundingBox.min;
+    glm::dvec3 bbMin{mScene.model.parts[0].boundingBox.min};
+    glm::dvec3 bbMax{mScene.model.parts[0].boundingBox.max};
+
+    glm::dvec3 modifiedPos = mScene.model.position + glm::dvec3{0, 0, s.z};
+
+    glm::mat4 transform = glm::translate(glm::identity<glm::dmat4>(), modifiedPos);
+    transform           = glm::scale(transform, glm::vec3{s.x, s.y, 1.0f});
+    const f32 dist      = glm::length(cameraPos - modelPos);
     // transform                = glm::scale(
     //   transform,
     //   glm::vec3{boundingQuad.worldSpaceScale.x, boundingQuad.worldSpaceScale.y, 1.0} / dist);
-    data->mvp   = glm::mat4{cameraProjection} * transform;
+    // data->mvp   = glm::mat4{cameraProjection} * transform;
+    glm::vec2 pMin   = boundingQuad.pixelMin;
+    glm::vec2 pMax   = boundingQuad.pixelMax;
+    auto      pScale = pMax - pMin;
+
+    glm::mat3 identity(1.0);
+    glm::mat4 billboard = glm::mat4{camera} * transform;
+    for (u32 x = 0; x < 3; x++)
+    {
+      for (u32 y = 0; y < 3; y++)
+      {
+        billboard[x][y] = identity[x][y];
+      }
+    }
+    billboard[0][0] = s.x;
+    billboard[1][1] = s.y;
+
+    data->mvp = glm::mat4{projection} * billboard;
+
     data->scale = glm::vec2(1.0 / dist);
     ctx->Unmap(mTexQuadConstantBuf.Get(), 0);
 
@@ -594,13 +627,11 @@ void Parallax::Draw(
 
     glm::vec2 texMin = glm::vec2{boundingQuad.pixelMin} / glm::vec2(1920.0, 1080.0);
     glm::vec2 texMax = glm::vec2{boundingQuad.pixelMax} / glm::vec2(1920.0, 1080.0);
-    glm::vec2 pMin   = boundingQuad.pixelMin;
-    glm::vec2 pMax   = boundingQuad.pixelMax;
 
-    v[0].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
-    v[1].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
-    v[2].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
-    v[3].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
+    // v[0].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
+    // v[1].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
+    // v[2].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
+    // v[3].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
 
     glm::vec2 center = (texMin + texMax) / 2.0f;
     glm::vec2 dim    = texMax - texMin;

@@ -39,6 +39,8 @@ add_executable(fixed_point_trickery
   src/methods/Parallax.cpp
 )
 
+target_compile_definitions(fixed_point_trickery PRIVATE NOMINMAX)
+
 include(cmake/CompilerWarnings.cmake)
 myproject_set_project_warnings(
     fixed_point_trickery 
