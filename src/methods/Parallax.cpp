@@ -329,6 +329,8 @@ void Parallax::Draw(
   u32                   height,
   ID3D11DeviceContext3 *ctx,
   const glm::dmat4     &cameraProjection,
+  const glm::dmat4     &camera,
+  const glm::dmat4     &projection,
   const glm::dvec3     &modelPos,
   const glm::dvec3     &cameraPos,
   dx::RenderContext    &renderContext,
@@ -526,7 +528,11 @@ void Parallax::Draw(
     glm::mat4 transform = glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
     const f32 dist      = glm::length(cameraPos - modelPos);
     // transform            = glm::scale(transform, glm::vec3(dist));
-    sceneData->modelView = glm::mat4{cameraProjection} * transform;
+    glm::vec3 screenCenter = camera * glm::vec4{0, 0, 0, 1};
+    glm::mat4 centerTransform =
+      glm::translate(glm::mat4(1.0), glm::vec3{-screenCenter.x, -screenCenter.y, 1.0});
+    sceneData->modelView =
+      glm::mat4{projection} /** centerTransform*/ * glm::mat4{camera} * transform;
 
     ctx->Unmap(mQuadTargetCB.Get(), 0);
 
@@ -595,6 +601,10 @@ void Parallax::Draw(
     v[1].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
     v[2].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
     v[3].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
+
+    glm::vec2 center = (texMin + texMax) / 2.0f;
+    glm::vec2 dim    = texMax - texMin;
+
     v[0].texCoord = {texMin.x, texMin.y};
     v[1].texCoord = {texMin.x, texMax.y};
     v[2].texCoord = {texMax.x, texMin.y};
@@ -629,14 +639,33 @@ void Parallax::Draw(
     annotation->EndEvent();
   };
 
-  // DrawModel();
-  // DrawBBDebug();
+  static bool drawModelChk        = false;
+  static bool drawBBDebugChk      = false;
+  static bool drawQuadDebugChk    = false;
+  static bool DrawTexturedQuadChk = true;
+
+  ImGui::Checkbox("drawModelChk", &drawModelChk);
+  ImGui::Checkbox("drawBBDebugChk", &drawBBDebugChk);
+  ImGui::Checkbox("drawQuadDebugChk", &drawQuadDebugChk);
+  ImGui::Checkbox("DrawTexturedQuadChk", &DrawTexturedQuadChk);
+
+  if (drawModelChk)
+    DrawModel();
+  if (drawBBDebugChk)
+    DrawBBDebug();
+  glm::vec3 screenCenter = camera * glm::vec4{0, 0, 0, 1};
+  screenCenter = glm::translate(glm::mat4(1.0), -screenCenter) * glm::vec4{screenCenter, 1.0};
+  ImGui::Text("camera space center: (%f, %f, %f)", screenCenter.x, screenCenter.y, screenCenter.z);
   ImGui::Text("Quad Size: (%d, %d)", boundingQuad.pixelDim.x, boundingQuad.pixelDim.y);
   // Need to have logic for when the quad is larger than the screen.
   // When that occurs, clamp the texture size to the screen size, but still render to the quad
-  DrawQuadDebug();
-  RenderToQuad(boundingQuad.pixelDim);
-  DrawTexturedQuad();
+  if (drawQuadDebugChk)
+    DrawQuadDebug();
+  if (DrawTexturedQuadChk)
+  {
+    RenderToQuad(boundingQuad.pixelDim);
+    DrawTexturedQuad();
+  }
 }
 
 } // namespace methods

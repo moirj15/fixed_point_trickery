@@ -79,6 +79,8 @@ public:
     u32                   height,
     ID3D11DeviceContext3 *ctx,
     const glm::dmat4     &cameraProjection,
+    const glm::dmat4     &camera,
+    const glm::dmat4     &projection,
     const glm::dvec3     &modelPos,
     const glm::dvec3     &cameraPos,
     dx::RenderContext    &renderContext,

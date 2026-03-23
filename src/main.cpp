@@ -272,6 +272,8 @@ int main(int argc, char **argv)
         HEIGHT,
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
+        arcballCamera.transform(),
+        projection,
         glm::dvec3{modelPos},
         glm::dvec3{arcballCamera.eye()},
         ctx,
