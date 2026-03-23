@@ -611,8 +611,8 @@ void Parallax::Draw(
         billboard[x][y] = identity[x][y];
       }
     }
-    billboard[0][0] = s.x;
-    billboard[1][1] = s.y;
+    // billboard[0][0] = s.x;
+    // billboard[1][1] = s.y;
 
     data->mvp = glm::mat4{projection} * billboard;
 
@@ -628,18 +628,23 @@ void Parallax::Draw(
     glm::vec2 texMin = glm::vec2{boundingQuad.pixelMin} / glm::vec2(1920.0, 1080.0);
     glm::vec2 texMax = glm::vec2{boundingQuad.pixelMax} / glm::vec2(1920.0, 1080.0);
 
-    // v[0].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
-    // v[1].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
-    // v[2].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
-    // v[3].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
+    v[0].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
+    v[1].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
+    v[2].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
+    v[3].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
 
     glm::vec2 center = (texMin + texMax) / 2.0f;
     glm::vec2 dim    = texMax - texMin;
 
-    v[0].texCoord = {texMin.x, texMin.y};
-    v[1].texCoord = {texMin.x, texMax.y};
-    v[2].texCoord = {texMax.x, texMin.y};
-    v[3].texCoord = {texMax.x, texMax.y};
+    v[0].texCoord = (v[0].position + 1.0f) / 2.0f;
+    v[1].texCoord = (v[1].position + 1.0f) / 2.0f;
+    v[2].texCoord = (v[2].position + 1.0f) / 2.0f;
+    v[3].texCoord = (v[3].position + 1.0f) / 2.0f;
+
+    // v[0].texCoord = {texMin.x, texMin.y};
+    // v[1].texCoord = {texMin.x, texMax.y};
+    // v[2].texCoord = {texMax.x, texMin.y};
+    // v[3].texCoord = {texMax.x, texMax.y};
 
     ctx->Unmap(mTexturedQuadVertBuf.Get(), 0);
 
