@@ -33,11 +33,21 @@ VSOut VSMain(Vertex vertex)
 }
 
 Texture2D tex : register(t0);
+Texture2D depthTex : register(t1);
 SamplerState samp : register(s0);
 
-float4 PSMain(VSOut vsOut) : SV_TARGET
+struct PSOut
 {
-  float4 texel = tex.Sample(samp, vsOut.texCoord);
+  float4 color : SV_TARGET;
+  float depth : SV_DEPTH;
+};
+
+PSOut PSMain(VSOut vsOut)
+{
+  PSOut psOut = (PSOut) 0;
+  psOut.color = float4(tex.Sample(samp, vsOut.texCoord).rgb, 1.0);
+  psOut.depth = depthTex.Sample(samp, vsOut.texCoord).r;
+  //psOut.color = float4(psOut.depth.rrr, 1.0);
   //return 1.0.xxxx;
-  return float4(texel.rgb, 1.0);
+  return psOut;
 }

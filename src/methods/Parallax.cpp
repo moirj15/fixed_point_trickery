@@ -231,7 +231,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     .Height    = 1080,
     .MipLevels = 1,
     .ArraySize = 1,
-    .Format    = DXGI_FORMAT_D24_UNORM_S8_UINT,
+    .Format    = DXGI_FORMAT_R24G8_TYPELESS,
     // Multi sampling here
     .SampleDesc =
       {
@@ -239,14 +239,42 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
         .Quality = 0,
       },
     .Usage          = D3D11_USAGE_DEFAULT,
-    .BindFlags      = D3D11_BIND_DEPTH_STENCIL,
+    .BindFlags      = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE,
     .CPUAccessFlags = 0,
     .MiscFlags      = 0,
   };
 
   dx::ThrowIfFailed(device->CreateTexture2D(&quadDepthDesc, 0, mQuadDepth.GetAddressOf()));
-  dx::ThrowIfFailed(
-    device->CreateDepthStencilView(mQuadDepth.Get(), 0, mQuadDepthView.GetAddressOf()));
+
+  D3D11_DEPTH_STENCIL_VIEW_DESC quadDepthStencilViewDesc = {
+    .Format        = DXGI_FORMAT_D24_UNORM_S8_UINT,
+    .ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D,
+    .Flags         = 0,
+    .Texture2D =
+      {
+        .MipSlice = 0,
+      },
+  };
+
+  dx::ThrowIfFailed(device->CreateDepthStencilView(
+    mQuadDepth.Get(),
+    &quadDepthStencilViewDesc,
+    mQuadDepthView.GetAddressOf()));
+
+  D3D11_SHADER_RESOURCE_VIEW_DESC quadDepthViewDesc = {
+    .Format        = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
+    .ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D,
+    .Texture2D =
+      {
+        .MostDetailedMip = 0,
+        .MipLevels       = 1,
+      },
+  };
+
+  dx::ThrowIfFailed(device->CreateShaderResourceView(
+    mQuadDepth.Get(),
+    &quadDepthViewDesc,
+    mQuadDepthTexView.GetAddressOf()));
 
   CD3D11_SAMPLER_DESC samplerDesc{CD3D11_DEFAULT{}};
   dx::ThrowIfFailed(device->CreateSamplerState(&samplerDesc, mTexQuadSamplerState.GetAddressOf()));
@@ -663,15 +691,19 @@ void Parallax::Draw(
     ctx->RSSetState(renderContext.rasterizerState.Get());
 
     ctx->PSSetShader(rp.pixelShader, nullptr, 0);
-    ctx->PSSetShaderResources(0, 1, mQuadView.GetAddressOf());
+    std::array srvs = {
+      mQuadView.Get(),
+      mQuadDepthTexView.Get(),
+    };
+    ctx->PSSetShaderResources(0, srvs.size(), srvs.data());
     ctx->PSSetSamplers(0, 1, mTexQuadSamplerState.GetAddressOf());
     ctx->OMSetRenderTargets(
       1,
       renderContext.backbufferRTV.GetAddressOf(),
       renderContext.depthStencilView.Get());
     ctx->DrawIndexed(6, 0, 0);
-    ID3D11ShaderResourceView *np = nullptr;
-    ctx->PSSetShaderResources(0, 1, &np);
+    std::array<ID3D11ShaderResourceView *, 2> np = {nullptr, nullptr};
+    ctx->PSSetShaderResources(0, np.size(), np.data());
     annotation->EndEvent();
   };
 
