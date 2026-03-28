@@ -37,6 +37,9 @@ struct TexturedQuadVertex
 struct TextureQuadCB
 {
   glm::mat4 mvp;
+  glm::vec4 pos;
+  glm::vec4 cameraRight;
+  glm::vec4 cameraUp;
   glm::vec2 scale;
 };
 
@@ -279,11 +282,17 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   CD3D11_SAMPLER_DESC samplerDesc{CD3D11_DEFAULT{}};
   dx::ThrowIfFailed(device->CreateSamplerState(&samplerDesc, mTexQuadSamplerState.GetAddressOf()));
 
+  // std::array<TexturedQuadVertex, 4> texQuadVerts = {
+  //   TexturedQuadVertex{{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+  //   TexturedQuadVertex{{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+  //   TexturedQuadVertex{{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+  //   TexturedQuadVertex{{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
+  // };
   std::array<TexturedQuadVertex, 4> texQuadVerts = {
-    TexturedQuadVertex{{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    TexturedQuadVertex{{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
-    TexturedQuadVertex{{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    TexturedQuadVertex{{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
+    TexturedQuadVertex{{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
+    TexturedQuadVertex{{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
+    TexturedQuadVertex{{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},
+    TexturedQuadVertex{{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
   };
   mTexturedQuadVertBuf = dx::CreateVertexBuffer<TexturedQuadVertex>(mDevice, 4, texQuadVerts, true);
   mQuadTargetCB        = dx::CreateConstantBuffer<SceneData>(mDevice, nullptr);
@@ -642,9 +651,16 @@ void Parallax::Draw(
     // billboard[0][0] = s.x;
     // billboard[1][1] = s.y;
 
-    data->mvp = glm::mat4{projection} * billboard;
+    // data->mvp = glm::mat4{projection} * billboard;
+    data->mvp = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos);
 
     data->scale = glm::vec2(1.0 / dist);
+    // data->scale = glm::vec2(1.0);
+    //  data->cameraRight = {camera[0][0], camera[1][0], camera[2][0], 0.0};
+    //  data->cameraUp    = {camera[0][1], camera[1][1], camera[2][1], 0.0};
+    data->pos         = glm::vec4(modelPos, 1.0);
+    data->cameraRight = {1.0, 0.0, 0.0, 0.0};
+    data->cameraUp    = {0.0, 1.0, 0.0, 0.0};
     ctx->Unmap(mTexQuadConstantBuf.Get(), 0);
 
     D3D11_MAPPED_SUBRESOURCE mappedVB{};
@@ -656,18 +672,31 @@ void Parallax::Draw(
     glm::vec2 texMin = glm::vec2{boundingQuad.pixelMin} / glm::vec2(1920.0, 1080.0);
     glm::vec2 texMax = glm::vec2{boundingQuad.pixelMax} / glm::vec2(1920.0, 1080.0);
 
-    v[0].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
-    v[1].position = glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
-    v[2].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, 0.0f};
-    v[3].position = glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, 0.0f};
+    const glm::dvec4 pSpace = cameraProjection * glm::dvec4{mScene.model.position, 1.0};
+
+#if 0
+    v[0].position =
+      glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, pSpace.z / pSpace.w};
+    v[1].position =
+      glm::vec3{(pMin.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, pSpace.z / pSpace.w};
+    v[2].position =
+      glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMax.y / height) * 2.0 - 1.0, pSpace.z / pSpace.w};
+    v[3].position =
+      glm::vec3{(pMax.x / width) * 2.0 - 1.0, (pMin.y / height) * 2.0 - 1.0, pSpace.z / pSpace.w};
+#else
+    // v[0].position = glm::vec3{-0.5};
+    // v[1].position = glm::vec3{};
+    // v[2].position = glm::vec3{};
+    // v[3].position = glm::vec3{};
+#endif
 
     glm::vec2 center = (texMin + texMax) / 2.0f;
     glm::vec2 dim    = texMax - texMin;
 
-    v[0].texCoord = (v[0].position + 1.0f) / 2.0f;
-    v[1].texCoord = (v[1].position + 1.0f) / 2.0f;
-    v[2].texCoord = (v[2].position + 1.0f) / 2.0f;
-    v[3].texCoord = (v[3].position + 1.0f) / 2.0f;
+    // v[0].texCoord = (v[0].position + 1.0f) / 2.0f;
+    // v[1].texCoord = (v[1].position + 1.0f) / 2.0f;
+    // v[2].texCoord = (v[2].position + 1.0f) / 2.0f;
+    // v[3].texCoord = (v[3].position + 1.0f) / 2.0f;
 
     // v[0].texCoord = {texMin.x, texMin.y};
     // v[1].texCoord = {texMin.x, texMax.y};
