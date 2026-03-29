@@ -41,7 +41,8 @@ struct TextureQuadCB
   glm::vec4 pos;
   glm::vec4 cameraRight;
   glm::vec4 cameraUp;
-  glm::vec2 scale;
+  glm::vec2 texScale;
+  glm::vec2 billboardScale;
 };
 
 static std::vector<BBDebugVertex> sBBVertices = {
@@ -283,18 +284,21 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   CD3D11_SAMPLER_DESC samplerDesc{CD3D11_DEFAULT{}};
   dx::ThrowIfFailed(device->CreateSamplerState(&samplerDesc, mTexQuadSamplerState.GetAddressOf()));
 
-  // std::array<TexturedQuadVertex, 4> texQuadVerts = {
-  //   TexturedQuadVertex{{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-  //   TexturedQuadVertex{{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
-  //   TexturedQuadVertex{{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-  //   TexturedQuadVertex{{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
-  // };
+#if 0
+  std::array<TexturedQuadVertex, 4> texQuadVerts = {
+    TexturedQuadVertex{{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    TexturedQuadVertex{{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+    TexturedQuadVertex{{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    TexturedQuadVertex{{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
+  };
+#else
   std::array<TexturedQuadVertex, 4> texQuadVerts = {
     TexturedQuadVertex{{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
     TexturedQuadVertex{{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
     TexturedQuadVertex{{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},
     TexturedQuadVertex{{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
   };
+#endif
   mTexturedQuadVertBuf = dx::CreateVertexBuffer<TexturedQuadVertex>(mDevice, 4, texQuadVerts, true);
   mQuadTargetCB        = dx::CreateConstantBuffer<SceneData>(mDevice, nullptr);
 }
@@ -666,12 +670,15 @@ void Parallax::Draw(
 
     // data->scale = glm::vec2(1.0 / dist);
     //  data->scale = glm::vec2(1.0);
-    data->scale       = glm::vec2{(pMax.x - pMin.x) / 1920.0, (pMax.y - pMin.y) / 1080.0};
-    data->pos         = glm::vec4(modelPos, 1.0);
-    data->cameraRight = {camera[0][0], camera[1][0], camera[2][0], 0.0};
-    data->cameraUp    = {camera[0][1], camera[1][1], camera[2][1], 0.0};
-    // data->cameraRight = {1.0, 0.0, 0.0, 0.0};
-    // data->cameraUp    = {0.0, 1.0, 0.0, 0.0};
+    data->texScale       = glm::vec2{(pMax.x - pMin.x) / 1920.0, (pMax.y - pMin.y) / 1080.0};
+    data->pos            = glm::vec4(modelPos, 1.0);
+    data->cameraRight    = {camera[0][0], camera[1][0], camera[2][0], 0.0};
+    data->cameraUp       = {camera[0][1], camera[1][1], camera[2][1], 0.0};
+    data->billboardScale = glm::dvec4{boundingQuad.worldSpaceScale, 0, 1};
+    // data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
+    // data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
+    //  data->cameraRight = {1.0, 0.0, 0.0, 0.0};
+    //  data->cameraUp    = {0.0, 1.0, 0.0, 0.0};
     ctx->Unmap(mTexQuadConstantBuf.Get(), 0);
 
     D3D11_MAPPED_SUBRESOURCE mappedVB{};

@@ -10,13 +10,14 @@ struct VSOut
   float2 texCoord : TEXCOORD;
 };
 
-struct Scene 
+struct Scene
 {
   float4x4 mvp;
   float4 pos;
   float4 cameraRight;
   float4 cameraUp;
-  float2 scale;
+  float2 texScale;
+  float2 billboardScale;
 };
 
 cbuffer Constants : register(b0)
@@ -29,22 +30,26 @@ VSOut VSMain(Vertex vertex)
 {
   VSOut ret = (VSOut) 0;
 
-  #if 0
+#if 0
   //ret.pos = mul(scene.mvp, float4(vertex.pos, 1.0));
   ret.pos = float4(vertex.pos, 1.0);
 #endif
   //float3 position = mul(scene.mvp, float4(0.0, 0.0, 0.0, 1.0)).xyz;
-  float2 scale = float2(2.0, 2.0);
-  //scale = scene.scale;
+  //float2 scale = float2(2.0, 2.0);
+  float2 scale = scene.billboardScale;
   //ret.pos = float4(scene.pos.xyz 
+#if 1
   ret.pos = mul(scene.mvp, float4(scene.pos.xyz
     + scene.cameraRight.xyz * vertex.pos.x * scale.x
     + scene.cameraUp.xyz * vertex.pos.y * scale.y, 1.0));
+#else
+  ret.pos = float4(vertex.pos, 1.0);
+#endif
 
   //float s = 0.7;
   //ret.texCoord = vertex.texCoord * float2(s, s);
 
-  ret.texCoord = (vertex.texCoord - 0.5) * scene.scale + 0.5;
+  ret.texCoord = (vertex.texCoord - 0.5) * scene.texScale + 0.5;
   
   
   return ret;
