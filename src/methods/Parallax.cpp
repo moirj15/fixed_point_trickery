@@ -652,15 +652,15 @@ void Parallax::Draw(
     // billboard[1][1] = s.y;
 
     // data->mvp = glm::mat4{projection} * billboard;
-    data->mvp = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos);
+    data->mvp = cameraProjection; // * glm::translate(glm::identity<glm::dmat4>(), modelPos);
 
     data->scale = glm::vec2(1.0 / dist);
     // data->scale = glm::vec2(1.0);
-    //  data->cameraRight = {camera[0][0], camera[1][0], camera[2][0], 0.0};
-    //  data->cameraUp    = {camera[0][1], camera[1][1], camera[2][1], 0.0};
     data->pos         = glm::vec4(modelPos, 1.0);
-    data->cameraRight = {1.0, 0.0, 0.0, 0.0};
-    data->cameraUp    = {0.0, 1.0, 0.0, 0.0};
+    data->cameraRight = {camera[0][0], camera[1][0], camera[2][0], 0.0};
+    data->cameraUp    = {camera[0][1], camera[1][1], camera[2][1], 0.0};
+    // data->cameraRight = {1.0, 0.0, 0.0, 0.0};
+    // data->cameraUp    = {0.0, 1.0, 0.0, 0.0};
     ctx->Unmap(mTexQuadConstantBuf.Get(), 0);
 
     D3D11_MAPPED_SUBRESOURCE mappedVB{};
@@ -693,10 +693,14 @@ void Parallax::Draw(
     glm::vec2 center = (texMin + texMax) / 2.0f;
     glm::vec2 dim    = texMax - texMin;
 
-    // v[0].texCoord = (v[0].position + 1.0f) / 2.0f;
-    // v[1].texCoord = (v[1].position + 1.0f) / 2.0f;
-    // v[2].texCoord = (v[2].position + 1.0f) / 2.0f;
-    // v[3].texCoord = (v[3].position + 1.0f) / 2.0f;
+    v[0].texCoord   = (v[0].position + 1.0f) / 2.0f;
+    v[1].texCoord   = (v[1].position + 1.0f) / 2.0f;
+    v[2].texCoord   = (v[2].position + 1.0f) / 2.0f;
+    v[3].texCoord   = (v[3].position + 1.0f) / 2.0f;
+    v[0].texCoord.y = 1.0 - v[0].texCoord.y;
+    v[1].texCoord.y = 1.0 - v[1].texCoord.y;
+    v[2].texCoord.y = 1.0 - v[2].texCoord.y;
+    v[3].texCoord.y = 1.0 - v[3].texCoord.y;
 
     // v[0].texCoord = {texMin.x, texMin.y};
     // v[1].texCoord = {texMin.x, texMax.y};

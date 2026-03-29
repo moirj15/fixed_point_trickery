@@ -33,14 +33,15 @@ VSOut VSMain(Vertex vertex)
   //ret.pos = mul(scene.mvp, float4(vertex.pos, 1.0));
   ret.pos = float4(vertex.pos, 1.0);
 #endif
-  float3 position = mul(scene.mvp, float4(0.0, 0.0, 0.0, 1.0)).xyz;
+  //float3 position = mul(scene.mvp, float4(0.0, 0.0, 0.0, 1.0)).xyz;
   float2 scale = float2(2.0, 2.0);
   //ret.pos = float4(scene.pos.xyz 
-  ret.pos = float4(position
+  ret.pos = mul(scene.mvp, float4(scene.pos.xyz
     + scene.cameraRight.xyz * vertex.pos.x * scale.x
-    + scene.cameraUp.xyz * vertex.pos.y * scale.y, 1.0);
+    + scene.cameraUp.xyz * vertex.pos.y * scale.y, 1.0));
 
-  ret.texCoord = vertex.texCoord;
+  float s = 0.7;
+  ret.texCoord = vertex.texCoord * float2(s, s);
   
   
   return ret;
@@ -69,6 +70,7 @@ PSOut PSMain(VSOut vsOut)
   //psOut.color = 1.0.xxxx;
 
   psOut.depth = depthTex.Sample(samp, vsOut.texCoord).r;
+
   //psOut.depth = 0.5;
   //psOut.depth *= vsOut.pos.z;
   //psOut.color.a = vsOut.pos.z;
