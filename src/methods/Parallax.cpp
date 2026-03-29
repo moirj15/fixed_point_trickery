@@ -1,6 +1,7 @@
 #include "Parallax.hpp"
 
 #include <array>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
@@ -575,8 +576,17 @@ void Parallax::Draw(
     glm::vec3 screenCenter = camera * glm::vec4{0, 0, 0, 1};
     glm::mat4 centerTransform =
       glm::translate(glm::mat4(1.0), glm::vec3{-screenCenter.x, -screenCenter.y, 1.0});
+#if 0
     sceneData->modelView =
       glm::mat4{projection} /** centerTransform*/ * glm::mat4{camera} * transform;
+#endif
+    // glm::mat4 rotation = glm::mat4{glm::transpose(glm::mat3{camera})};
+    glm::mat4 rotation = glm::mat4{(glm::mat3{camera})};
+
+    glm::mat4 camMat =
+      glm::lookAt(glm::vec3{0.0, 0.0, dist}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
+
+    sceneData->modelView = glm::mat4{projection} * camMat * rotation;
     // sceneData->modelView = glm::mat4{projection} /** centerTransform*/ * c * transform;
 
     ctx->Unmap(mQuadTargetCB.Get(), 0);
@@ -654,8 +664,9 @@ void Parallax::Draw(
     // data->mvp = glm::mat4{projection} * billboard;
     data->mvp = cameraProjection; // * glm::translate(glm::identity<glm::dmat4>(), modelPos);
 
-    data->scale = glm::vec2(1.0 / dist);
-    // data->scale = glm::vec2(1.0);
+    // data->scale = glm::vec2(1.0 / dist);
+    //  data->scale = glm::vec2(1.0);
+    data->scale       = glm::vec2{(pMax.x - pMin.x) / 1920.0, (pMax.y - pMin.y) / 1080.0};
     data->pos         = glm::vec4(modelPos, 1.0);
     data->cameraRight = {camera[0][0], camera[1][0], camera[2][0], 0.0};
     data->cameraUp    = {camera[0][1], camera[1][1], camera[2][1], 0.0};
@@ -693,14 +704,14 @@ void Parallax::Draw(
     glm::vec2 center = (texMin + texMax) / 2.0f;
     glm::vec2 dim    = texMax - texMin;
 
-    v[0].texCoord   = (v[0].position + 1.0f) / 2.0f;
-    v[1].texCoord   = (v[1].position + 1.0f) / 2.0f;
-    v[2].texCoord   = (v[2].position + 1.0f) / 2.0f;
-    v[3].texCoord   = (v[3].position + 1.0f) / 2.0f;
-    v[0].texCoord.y = 1.0 - v[0].texCoord.y;
-    v[1].texCoord.y = 1.0 - v[1].texCoord.y;
-    v[2].texCoord.y = 1.0 - v[2].texCoord.y;
-    v[3].texCoord.y = 1.0 - v[3].texCoord.y;
+    // v[0].texCoord   = (v[0].position + 1.0f) / 2.0f;
+    // v[1].texCoord   = (v[1].position + 1.0f) / 2.0f;
+    // v[2].texCoord   = (v[2].position + 1.0f) / 2.0f;
+    // v[3].texCoord   = (v[3].position + 1.0f) / 2.0f;
+    // v[0].texCoord.y = 1.0 - v[0].texCoord.y;
+    // v[1].texCoord.y = 1.0 - v[1].texCoord.y;
+    // v[2].texCoord.y = 1.0 - v[2].texCoord.y;
+    // v[3].texCoord.y = 1.0 - v[3].texCoord.y;
 
     // v[0].texCoord = {texMin.x, texMin.y};
     // v[1].texCoord = {texMin.x, texMax.y};
