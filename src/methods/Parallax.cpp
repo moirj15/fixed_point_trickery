@@ -492,10 +492,14 @@ void Parallax::Draw(
     glm::vec2  worldSpaceScale;
     glm::uvec2 pixelMax;
     glm::uvec2 pixelMin;
+    glm::vec3  viewMin;
+    glm::vec3  viewMax;
+    glm::vec3  closest;
   };
   const auto GetBoundingQuad = [&]() {
     std::array<glm::vec2, 8> clipSpace;
     std::array<glm::vec3, 8> transformedVerts;
+    std::array<glm::vec3, 8> viewVerts;
     glm::mat4                clipSpaceToPixelCoords = glm::identity<glm::mat4>();
 
     clipSpaceToPixelCoords[0][0] = width / 2.0;
@@ -508,24 +512,37 @@ void Parallax::Draw(
     glm::vec2 pMax{std::numeric_limits<f32>::min()};
     glm::vec2 cMin{std::numeric_limits<f32>::max()};
     glm::vec2 cMax{std::numeric_limits<f32>::min()};
+    glm::vec3 vMin{std::numeric_limits<f32>::max()};
+    glm::vec3 vMax{std::numeric_limits<f32>::min()};
+    glm::vec3 closest{std::numeric_limits<f32>::min()};
     for (size_t i = 0; i < mScene.model.parts.size(); i++)
     {
-      const glm::dmat4 mvp = cameraProjection * glm::dmat4{data.modelView} * mBBTransforms[i];
+      glm::dmat4 modelView = camera * glm::translate(glm::identity<glm::dmat4>(), modelPos);
+      // const glm::dmat4 mvp       = cameraProjection * glm::dmat4{data.modelView} *
+      // mBBTransforms[i];
       for (size_t vertIndex = 0; vertIndex < sBBVertices.size(); vertIndex++)
       {
         const glm::dvec4 position = glm::dvec4{sBBVertices[vertIndex].position, 1.0};
         const glm::vec4  transformedPosition =
-          glm::vec4{glm::dmat4{data.modelView} * mBBTransforms[i] * position};
+          glm::vec4{glm::dmat4{modelView} * mBBTransforms[i] * position};
 
+        viewVerts[vertIndex] = transformedPosition;
+        // viewVerts[vertIndex]        = camera * mBBTransforms[i] * position;
         transformedVerts[vertIndex] = model * mBBTransforms[i] * glm::vec4{position};
-        clipSpace[vertIndex] =
-          glm::vec2{clipSpaceToPixelCoords * transformedPosition} / transformedPosition.w;
+        closest                     = glm::max(transformedVerts[i], closest);
+        auto projected              = glm::mat4{projection} * transformedPosition;
+        clipSpace[vertIndex]        = glm::vec2{clipSpaceToPixelCoords * projected} / projected.w;
       }
 
       for (const auto &p : transformedVerts)
       {
         cMin = glm::min(cMin, glm::vec2{p});
         cMax = glm::max(cMax, glm::vec2{p});
+      }
+      for (const auto &p : viewVerts)
+      {
+        vMin = glm::min(vMin, glm::vec3{p});
+        vMax = glm::max(vMax, glm::vec3{p});
       }
 
 #if 0
@@ -557,7 +574,7 @@ void Parallax::Draw(
       ctx->Unmap(mQuadVertBuf.Get(), 0);
     }
     const glm::vec2 dim = pMax - pMin;
-    return BoundingQuad{glm::uvec2{dim}, cMax - cMin, pMax, pMin};
+    return BoundingQuad{glm::uvec2{dim}, cMax - cMin, pMax, pMin, vMin, vMax, closest};
   };
 
   const BoundingQuad boundingQuad = GetBoundingQuad();
@@ -667,16 +684,37 @@ void Parallax::Draw(
 
     // data->mvp = glm::mat4{projection} * billboard;
     data->mvp = cameraProjection; // * glm::translate(glm::identity<glm::dmat4>(), modelPos);
+    // data->mvp = projection; // * glm::translate(glm::identity<glm::dmat4>(), modelPos);
 
     // data->scale = glm::vec2(1.0 / dist);
     //  data->scale = glm::vec2(1.0);
-    data->texScale       = glm::vec2{(pMax.x - pMin.x) / 1920.0, (pMax.y - pMin.y) / 1080.0};
-    data->pos            = glm::vec4(modelPos, 1.0);
+    data->texScale = glm::vec2{(pMax.x - pMin.x) / 1920.0, (pMax.y - pMin.y) / 1080.0};
+#if 1
+    glm::vec3 toCam      = glm::normalize(arcball.eye() - glm::vec3{modelPos});
+    glm::vec3 depthScale = glm::inverse(camera) * glm::dvec4{boundingQuad.viewMin, 1.0};
+    data->pos            = glm::vec4(glm::vec3{modelPos} + toCam * boundingQuad.viewMax.z, 1.0);
+    // data->pos    = glm::vec4(glm::vec3{modelPos} + toCam * depthScale.z, 1.0);
+    glm::vec3 pp = {
+      (boundingQuad.viewMin.x + boundingQuad.viewMax.x) * 0.5,
+      (boundingQuad.viewMin.y + boundingQuad.viewMax.y) * 0.5,
+      boundingQuad.viewMin.z};
+    // data->pos = glm::inverse(camera) * glm::dvec4{pp, 1.0};
+    //  data->pos = glm::inverse(camera)
+    //              * glm::dvec4{arcball.eye() + arcball.dir() * boundingQuad.viewMin.z, 1.0};
+    //      data->pos.z += boundingQuad.closest.z;
+#else
+    data->pos =
+      glm::inverse(camera) * glm::vec4(boundingQuad.viewMax + boundingQuad.viewMin * 0.5f, 0, 1);
+    data->pos.z = 0;
+#endif
     data->cameraRight    = {camera[0][0], camera[1][0], camera[2][0], 0.0};
     data->cameraUp       = {camera[0][1], camera[1][1], camera[2][1], 0.0};
     data->billboardScale = glm::dvec4{boundingQuad.worldSpaceScale, 0, 1};
-    // data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
-    // data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
+    //  data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
+    //  data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
+
+    // data->billboardScale = {boundingQuad.viewMax - boundingQuad.viewMin};
+
     //  data->cameraRight = {1.0, 0.0, 0.0, 0.0};
     //  data->cameraUp    = {0.0, 1.0, 0.0, 0.0};
     ctx->Unmap(mTexQuadConstantBuf.Get(), 0);

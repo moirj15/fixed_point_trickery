@@ -39,9 +39,14 @@ VSOut VSMain(Vertex vertex)
   float2 scale = scene.billboardScale;
   //ret.pos = float4(scene.pos.xyz 
 #if 1
-  ret.pos = mul(scene.mvp, float4(scene.pos.xyz
+  float3 p = scene.pos.xyz;
+  //p.z += 1.0;
+  ret.pos = mul(scene.mvp, float4(p
     + scene.cameraRight.xyz * vertex.pos.x * scale.x
     + scene.cameraUp.xyz * vertex.pos.y * scale.y, 1.0));
+  //ret.pos = float4(scene.pos.xyz
+  //  + scene.cameraRight.xyz * vertex.pos.x * scale.x
+  //  + scene.cameraUp.xyz * vertex.pos.y * scale.y, 1.0);
 #else
   ret.pos = float4(vertex.pos, 1.0);
 #endif
