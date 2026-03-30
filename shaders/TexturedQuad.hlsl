@@ -40,6 +40,14 @@ VSOut VSMain(Vertex vertex)
   //ret.pos = float4(scene.pos.xyz 
 #if 1
   float3 p = scene.pos.xyz;
+  float frustumHeight = 2 * 0.15 * tan((16.0 / 9.0) / 2.0);
+  float frustumWidth = frustumHeight * (16.0 / 9.0);
+  float verticalScale = scale.y / frustumHeight;
+  float horizontalScale = scale.x / frustumWidth;
+  scale = float2(horizontalScale, verticalScale);
+  //scale *= perspectiveScale;
+  //scale = float2(frustumWidth, frustumHeight);
+  //p.xy /= 2.0;
   //p.z += 1.0;
   ret.pos = mul(scene.mvp, float4(p
     + scene.cameraRight.xyz * vertex.pos.x * scale.x

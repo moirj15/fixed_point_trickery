@@ -489,7 +489,8 @@ void Parallax::Draw(
   struct BoundingQuad
   {
     glm::uvec2 pixelDim;
-    glm::vec2  worldSpaceScale;
+    glm::vec3  worldSpaceMax;
+    glm::vec3  worldSpaceMin;
     glm::uvec2 pixelMax;
     glm::uvec2 pixelMin;
     glm::vec3  viewMin;
@@ -510,8 +511,8 @@ void Parallax::Draw(
 
     glm::vec2 pMin{std::numeric_limits<f32>::max()};
     glm::vec2 pMax{std::numeric_limits<f32>::min()};
-    glm::vec2 cMin{std::numeric_limits<f32>::max()};
-    glm::vec2 cMax{std::numeric_limits<f32>::min()};
+    glm::vec3 worldspaceMin{std::numeric_limits<f32>::max()};
+    glm::vec3 worldspaceMax{std::numeric_limits<f32>::min()};
     glm::vec3 vMin{std::numeric_limits<f32>::max()};
     glm::vec3 vMax{std::numeric_limits<f32>::min()};
     glm::vec3 closest{std::numeric_limits<f32>::min()};
@@ -536,8 +537,8 @@ void Parallax::Draw(
 
       for (const auto &p : transformedVerts)
       {
-        cMin = glm::min(cMin, glm::vec2{p});
-        cMax = glm::max(cMax, glm::vec2{p});
+        worldspaceMin = glm::min(worldspaceMin, glm::vec3{p});
+        worldspaceMax = glm::max(worldspaceMax, glm::vec3{p});
       }
       for (const auto &p : viewVerts)
       {
@@ -574,7 +575,17 @@ void Parallax::Draw(
       ctx->Unmap(mQuadVertBuf.Get(), 0);
     }
     const glm::vec2 dim = pMax - pMin;
-    return BoundingQuad{glm::uvec2{dim}, cMax - cMin, pMax, pMin, vMin, vMax, closest};
+    return BoundingQuad{
+      .pixelDim = glm::uvec2{dim},
+
+      .worldSpaceMax = worldspaceMax,
+      .worldSpaceMin = worldspaceMin,
+      .pixelMax      = pMax,
+      .pixelMin      = pMin,
+      .viewMin       = vMin,
+      .viewMax       = vMax,
+      .closest       = closest,
+    };
   };
 
   const BoundingQuad boundingQuad = GetBoundingQuad();
@@ -693,15 +704,21 @@ void Parallax::Draw(
     glm::vec3 toCam      = glm::normalize(arcball.eye() - glm::vec3{modelPos});
     glm::vec3 depthScale = glm::inverse(camera) * glm::dvec4{boundingQuad.viewMin, 1.0};
     data->pos            = glm::vec4(glm::vec3{modelPos} + toCam * boundingQuad.viewMax.z, 1.0);
-    // data->pos    = glm::vec4(glm::vec3{modelPos} + toCam * depthScale.z, 1.0);
-    glm::vec3 pp = {
-      (boundingQuad.viewMin.x + boundingQuad.viewMax.x) * 0.5,
-      (boundingQuad.viewMin.y + boundingQuad.viewMax.y) * 0.5,
-      boundingQuad.viewMin.z};
-    // data->pos = glm::inverse(camera) * glm::dvec4{pp, 1.0};
-    //  data->pos = glm::inverse(camera)
-    //              * glm::dvec4{arcball.eye() + arcball.dir() * boundingQuad.viewMin.z, 1.0};
-    //      data->pos.z += boundingQuad.closest.z;
+    data->pos            = glm::vec4{boundingQuad.worldSpaceMax, 1.0};
+
+    data->pos.x = (boundingQuad.worldSpaceMax.x + boundingQuad.worldSpaceMin.x) / 2.0;
+    data->pos.y = (boundingQuad.worldSpaceMax.y + boundingQuad.worldSpaceMin.y) / 2.0;
+    data->pos.z = (boundingQuad.worldSpaceMax.z + boundingQuad.worldSpaceMin.z) / 2.0;
+
+    data->pos = glm::vec4(glm::vec3{modelPos} + toCam * depthScale.z, 1.0);
+    // glm::vec3 pp = {
+    //   (boundingQuad.viewMin.x + boundingQuad.viewMax.x) * 0.5,
+    //   (boundingQuad.viewMin.y + boundingQuad.viewMax.y) * 0.5,
+    //   boundingQuad.viewMin.z};
+    //  data->pos = glm::inverse(camera) * glm::dvec4{pp, 1.0};
+    //   data->pos = glm::inverse(camera)
+    //               * glm::dvec4{arcball.eye() + arcball.dir() * boundingQuad.viewMin.z, 1.0};
+    //       data->pos.z += boundingQuad.closest.z;
 #else
     data->pos =
       glm::inverse(camera) * glm::vec4(boundingQuad.viewMax + boundingQuad.viewMin * 0.5f, 0, 1);
@@ -709,7 +726,7 @@ void Parallax::Draw(
 #endif
     data->cameraRight    = {camera[0][0], camera[1][0], camera[2][0], 0.0};
     data->cameraUp       = {camera[0][1], camera[1][1], camera[2][1], 0.0};
-    data->billboardScale = glm::dvec4{boundingQuad.worldSpaceScale, 0, 1};
+    data->billboardScale = glm::dvec4{boundingQuad.worldSpaceMax - boundingQuad.worldSpaceMin, 1};
     //  data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
     //  data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
 
