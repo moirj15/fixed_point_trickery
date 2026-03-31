@@ -30,6 +30,9 @@ class Parallax final
   const std::string BB_DEBUG_VERT_PATH  = "shaders/BoundingBox.hlsl";
   const std::string BB_DEBUG_PIXEL_PATH = "shaders/BoundingBox.hlsl";
 
+  const std::string BB_TEXTURED_VERT_PATH  = "shaders/BoundingBoxTextured.hlsl";
+  const std::string BB_TEXTURED_PIXEL_PATH = "shaders/BoundingBoxTextured.hlsl";
+
   const std::string QUAD_DEBUG_VERT_PATH  = "shaders/PassThrough.hlsl";
   const std::string QUAD_DEBUG_PIXEL_PATH = "shaders/PassThrough.hlsl";
 
@@ -78,6 +81,8 @@ class Parallax final
   ComPtr<ID3D11Buffer>             mTexturedQuadVertBuf; // reuse mQuadIndexBUf
   ComPtr<ID3D11Buffer>             mTexQuadConstantBuf;
   ComPtr<ID3D11ShaderResourceView> mQuadDepthTexView;
+
+  RenderProgramHandle mBBTexShaderHandle;
 
   OBB mObb;
 

@@ -133,6 +133,29 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .InstanceDataStepRate = 0,
         },
       })},
+    mBBTexShaderHandle{shaderWatcher.RegisterShader(
+      BB_TEXTURED_VERT_PATH,
+      BB_TEXTURED_PIXEL_PATH,
+      {
+        {
+          .SemanticName         = "POSITION",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(BBDebugVertex, position),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+        {
+          .SemanticName         = "COLOR",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(BBDebugVertex, color),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+      })},
     mBBDebugConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
     mQuadDebugShadersHandle{shaderWatcher.RegisterShader(
       QUAD_DEBUG_VERT_PATH,
@@ -457,6 +480,44 @@ void Parallax::Draw(
       ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
       ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
     }
+    annotation->EndEvent();
+  };
+  const auto DrawBB = [&]() {
+    annotation->BeginEvent(L"DrawBB");
+
+    RenderProgram        rp  = shaderWatcher.GetRenderProgram(mBBTexShaderHandle);
+    ID3D11DeviceContext *ctx = renderContext.DeviceContext();
+
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->IASetIndexBuffer(mBBDebugIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
+    u32 stride = sizeof(BBDebugVertex);
+    u32 offset = 0;
+    ctx->IASetVertexBuffers(0, 1, mBBDebugVertBuf.GetAddressOf(), &stride, &offset);
+    ctx->IASetInputLayout(rp.inputLayout);
+    ctx->VSSetShader(rp.vertexShader, nullptr, 0);
+    ctx->VSSetConstantBuffers(0, 1, mBBDebugConstantBuf.GetAddressOf());
+
+    ctx->RSSetState(renderContext.rasterizerState.Get());
+
+    ctx->PSSetShader(rp.pixelShader, nullptr, 0);
+    std::array srvs = {
+      mQuadView.Get(),
+      mQuadDepthTexView.Get(),
+    };
+    ctx->PSSetShaderResources(0, srvs.size(), srvs.data());
+    ctx->PSSetSamplers(0, 1, mTexQuadSamplerState.GetAddressOf());
+    ctx->OMSetRenderTargets(
+      1,
+      renderContext.backbufferRTV.GetAddressOf(),
+      renderContext.depthStencilView.Get());
+    for (u32 i = 0; i < mDraws.size(); i++)
+    {
+      const DrawOffsets draw = mDraws[i];
+      ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
+      ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
+    }
+    std::array<ID3D11ShaderResourceView *, 2> np = {nullptr, nullptr};
+    ctx->PSSetShaderResources(0, np.size(), np.data());
     annotation->EndEvent();
   };
 
@@ -857,7 +918,8 @@ void Parallax::Draw(
   if (DrawTexturedQuadChk)
   {
     RenderToQuad(boundingQuad.pixelDim);
-    DrawTexturedQuad();
+    // DrawTexturedQuad();
+    DrawBB();
   }
 }
 
