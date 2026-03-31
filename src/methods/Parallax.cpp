@@ -687,7 +687,9 @@ void Parallax::Draw(
 
     auto t = glm::translate(glm::mat4(1.0), center);
 
-    sceneData->modelView = glm::mat4{projection} * camMat * rotation * t;
+    // sceneData->modelView = glm::mat4{projection} * camMat * rotation * t;
+    sceneData->modelView =
+      projection * camera * glm::translate(glm::dmat4(1.0), modelPos); // rotation * t;
     // sceneData->modelView = glm::mat4{projection} /** centerTransform*/ * c * transform;
 
     ctx->Unmap(mQuadTargetCB.Get(), 0);
