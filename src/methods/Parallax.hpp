@@ -5,6 +5,7 @@
 #include "../scene.hpp"
 #include "../shaderWatcher.hpp"
 
+#include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
@@ -13,6 +14,13 @@ struct RenderContext;
 
 namespace methods
 {
+
+struct OBB
+{
+  glm::vec3 centerWS{};
+  glm::vec3 halfExtents{};
+  glm::mat3 rotation = glm::mat3(1.0);
+};
 
 class Parallax final
 {
@@ -70,6 +78,8 @@ class Parallax final
   ComPtr<ID3D11Buffer>             mTexturedQuadVertBuf; // reuse mQuadIndexBUf
   ComPtr<ID3D11Buffer>             mTexQuadConstantBuf;
   ComPtr<ID3D11ShaderResourceView> mQuadDepthTexView;
+
+  OBB mObb;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);

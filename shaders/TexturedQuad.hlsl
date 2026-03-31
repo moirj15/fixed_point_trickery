@@ -37,14 +37,15 @@ VSOut VSMain(Vertex vertex)
   //float3 position = mul(scene.mvp, float4(0.0, 0.0, 0.0, 1.0)).xyz;
   //float2 scale = float2(2.0, 2.0);
   float2 scale = scene.billboardScale;
+  //scale = 10.0 / sin((16.0 / 9.0) / 2.0);
   //ret.pos = float4(scene.pos.xyz 
 #if 1
   float3 p = scene.pos.xyz;
-  float frustumHeight = 2 * 0.15 * tan((16.0 / 9.0) / 2.0);
-  float frustumWidth = frustumHeight * (16.0 / 9.0);
-  float verticalScale = scale.y / frustumHeight;
-  float horizontalScale = scale.x / frustumWidth;
-  scale = float2(horizontalScale, verticalScale);
+  //float frustumHeight = 2 * 0.2 * tan((16.0 / 9.0) / 2.0);
+  //float frustumWidth = frustumHeight;// * (16.0 / 9.0);
+  //float verticalScale = scale.y / frustumHeight;
+  //float horizontalScale = scale.x / frustumWidth;
+  //scale = float2(horizontalScale, verticalScale);
   //scale *= perspectiveScale;
   //scale = float2(frustumWidth, frustumHeight);
   //p.xy /= 2.0;
@@ -63,6 +64,7 @@ VSOut VSMain(Vertex vertex)
   //ret.texCoord = vertex.texCoord * float2(s, s);
 
   ret.texCoord = (vertex.texCoord - 0.5) * scene.texScale + 0.5;
+  //ret.texCoord = vertex.texCoord;
   
   
   return ret;

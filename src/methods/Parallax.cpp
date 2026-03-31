@@ -363,6 +363,9 @@ void Parallax::SetScene(const Scene &scene)
     mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
     mBBDebugModelConstants.emplace_back(
       dx::CreateConstantBuffer<PerMeshData>(mDevice, &bbDebugData));
+
+    mObb.centerWS    = (bb.min + bb.max) * 0.5;
+    mObb.halfExtents = (bb.max - bb.min) * 0.5;
   }
 }
 
@@ -428,6 +431,7 @@ void Parallax::Draw(
 
   const auto DrawBBDebug = [&]() {
     annotation->BeginEvent(L"DrawBBDebug");
+
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mBBDebugShadersHandle);
     ID3D11DeviceContext *ctx = renderContext.DeviceContext();
 
@@ -513,8 +517,8 @@ void Parallax::Draw(
     glm::vec2 pMax{std::numeric_limits<f32>::min()};
     glm::vec3 worldspaceMin{std::numeric_limits<f32>::max()};
     glm::vec3 worldspaceMax{std::numeric_limits<f32>::min()};
-    glm::vec3 vMin{std::numeric_limits<f32>::max()};
-    glm::vec3 vMax{std::numeric_limits<f32>::min()};
+    glm::vec3 viewMin{std::numeric_limits<f32>::max()};
+    glm::vec3 viewMax{std::numeric_limits<f32>::min()};
     glm::vec3 closest{std::numeric_limits<f32>::min()};
     for (size_t i = 0; i < mScene.model.parts.size(); i++)
     {
@@ -542,8 +546,8 @@ void Parallax::Draw(
       }
       for (const auto &p : viewVerts)
       {
-        vMin = glm::min(vMin, glm::vec3{p});
-        vMax = glm::max(vMax, glm::vec3{p});
+        viewMin = glm::min(viewMin, glm::vec3{p});
+        viewMax = glm::max(viewMax, glm::vec3{p});
       }
 
 #if 0
@@ -582,8 +586,8 @@ void Parallax::Draw(
       .worldSpaceMin = worldspaceMin,
       .pixelMax      = pMax,
       .pixelMin      = pMin,
-      .viewMin       = vMin,
-      .viewMax       = vMax,
+      .viewMin       = viewMin,
+      .viewMax       = viewMax,
       .closest       = closest,
     };
   };
@@ -618,7 +622,11 @@ void Parallax::Draw(
     glm::mat4 camMat =
       glm::lookAt(glm::vec3{0.0, 0.0, dist}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
 
-    sceneData->modelView = glm::mat4{projection} * camMat * rotation;
+    glm::vec3 center = (boundingQuad.worldSpaceMax + boundingQuad.worldSpaceMin) / 2.0f;
+
+    auto t = glm::translate(glm::mat4(1.0), center);
+
+    sceneData->modelView = glm::mat4{projection} * camMat * rotation * t;
     // sceneData->modelView = glm::mat4{projection} /** centerTransform*/ * c * transform;
 
     ctx->Unmap(mQuadTargetCB.Get(), 0);
@@ -703,14 +711,24 @@ void Parallax::Draw(
 #if 1
     glm::vec3 toCam      = glm::normalize(arcball.eye() - glm::vec3{modelPos});
     glm::vec3 depthScale = glm::inverse(camera) * glm::dvec4{boundingQuad.viewMin, 1.0};
-    data->pos            = glm::vec4(glm::vec3{modelPos} + toCam * boundingQuad.viewMax.z, 1.0);
-    data->pos            = glm::vec4{boundingQuad.worldSpaceMax, 1.0};
+    // data->pos            = glm::vec4(glm::vec3{modelPos} + toCam * boundingQuad.viewMax.z, 1.0);
+    // data->pos = glm::vec4{boundingQuad.worldSpaceMax, 1.0};
+
+    auto bb              = mScene.model.parts[0].boundingBox;
+    f32  r               = glm::length(bb.min);
+    data->billboardScale = glm::vec2(r / sin((16.0 / 9.0) / 2.0));
 
     data->pos.x = (boundingQuad.worldSpaceMax.x + boundingQuad.worldSpaceMin.x) / 2.0;
     data->pos.y = (boundingQuad.worldSpaceMax.y + boundingQuad.worldSpaceMin.y) / 2.0;
     data->pos.z = (boundingQuad.worldSpaceMax.z + boundingQuad.worldSpaceMin.z) / 2.0;
 
-    data->pos = glm::vec4(glm::vec3{modelPos} + toCam * depthScale.z, 1.0);
+    data->pos = glm::vec4{glm::vec3{data->pos} + (r / 2.0f) * toCam, 1.0};
+
+    // data->pos.z += r / 2.0;
+
+    // data->pos = glm::vec4(glm::vec3{modelPos} + toCam * depthScale.z, 1.0);
+    // data->pos = {0, 0, 0, 1};
+
     // glm::vec3 pp = {
     //   (boundingQuad.viewMin.x + boundingQuad.viewMax.x) * 0.5,
     //   (boundingQuad.viewMin.y + boundingQuad.viewMax.y) * 0.5,
@@ -727,6 +745,7 @@ void Parallax::Draw(
     data->cameraRight    = {camera[0][0], camera[1][0], camera[2][0], 0.0};
     data->cameraUp       = {camera[0][1], camera[1][1], camera[2][1], 0.0};
     data->billboardScale = glm::dvec4{boundingQuad.worldSpaceMax - boundingQuad.worldSpaceMin, 1};
+
     //  data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
     //  data->billboardScale = {bbMax.x - bbMin.x, bbMax.y - bbMin.y};
 
