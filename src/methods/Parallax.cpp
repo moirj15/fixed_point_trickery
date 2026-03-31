@@ -452,6 +452,7 @@ void Parallax::Draw(
     annotation->EndEvent();
   };
 
+  // TODO: keep for visualization
   const auto DrawBBDebug = [&]() {
     annotation->BeginEvent(L"DrawBBDebug");
 
@@ -482,6 +483,7 @@ void Parallax::Draw(
     }
     annotation->EndEvent();
   };
+
   const auto DrawBB = [&]() {
     annotation->BeginEvent(L"DrawBB");
 
@@ -521,6 +523,7 @@ void Parallax::Draw(
     annotation->EndEvent();
   };
 
+#if 0
   const auto DrawQuadDebug = [&]() {
     annotation->BeginEvent(L"DrawQuadDebug");
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mQuadDebugShadersHandle);
@@ -654,8 +657,9 @@ void Parallax::Draw(
   };
 
   const BoundingQuad boundingQuad = GetBoundingQuad();
+#endif
 
-  auto RenderToQuad = [&](glm::uvec2 size) {
+  auto RenderToQuad = [&]() {
     annotation->BeginEvent(L"RenderToQuad");
 
     f32 l = glm::length(cameraPos - mScene.model.position);
@@ -666,17 +670,16 @@ void Parallax::Draw(
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     dx::ThrowIfFailed(ctx->Map(mQuadTargetCB.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
-    auto     *sceneData = reinterpret_cast<SceneData *>(mapped.pData);
+    auto *sceneData = reinterpret_cast<SceneData *>(mapped.pData);
+#if 0
     glm::mat4 transform = glm::translate(glm::identity<glm::dmat4>(), mScene.model.position);
     const f32 dist      = glm::length(cameraPos - modelPos);
     // transform            = glm::scale(transform, glm::vec3(dist));
     glm::vec3 screenCenter = camera * glm::vec4{0, 0, 0, 1};
     glm::mat4 centerTransform =
       glm::translate(glm::mat4(1.0), glm::vec3{-screenCenter.x, -screenCenter.y, 1.0});
-#if 0
     sceneData->modelView =
       glm::mat4{projection} /** centerTransform*/ * glm::mat4{camera} * transform;
-#endif
     // glm::mat4 rotation = glm::mat4{glm::transpose(glm::mat3{camera})};
     glm::mat4 rotation = glm::mat4{(glm::mat3{camera})};
 
@@ -686,6 +689,7 @@ void Parallax::Draw(
     glm::vec3 center = (boundingQuad.worldSpaceMax + boundingQuad.worldSpaceMin) / 2.0f;
 
     auto t = glm::translate(glm::mat4(1.0), center);
+#endif
 
     // sceneData->modelView = glm::mat4{projection} * camMat * rotation * t;
     sceneData->modelView =
@@ -728,6 +732,7 @@ void Parallax::Draw(
     annotation->EndEvent();
   };
 
+#if 0
   auto DrawTexturedQuad = [&]() {
     annotation->BeginEvent(L"DrawTexturedQuad");
 
@@ -894,6 +899,7 @@ void Parallax::Draw(
     ctx->PSSetShaderResources(0, np.size(), np.data());
     annotation->EndEvent();
   };
+#endif
 
   static bool drawModelChk        = false;
   static bool drawBBDebugChk      = false;
@@ -912,14 +918,16 @@ void Parallax::Draw(
   glm::vec3 screenCenter = camera * glm::vec4{0, 0, 0, 1};
   screenCenter = glm::translate(glm::mat4(1.0), -screenCenter) * glm::vec4{screenCenter, 1.0};
   ImGui::Text("camera space center: (%f, %f, %f)", screenCenter.x, screenCenter.y, screenCenter.z);
+#if 0
   ImGui::Text("Quad Size: (%d, %d)", boundingQuad.pixelDim.x, boundingQuad.pixelDim.y);
   // Need to have logic for when the quad is larger than the screen.
   // When that occurs, clamp the texture size to the screen size, but still render to the quad
   if (drawQuadDebugChk)
     DrawQuadDebug();
+#endif
   if (DrawTexturedQuadChk)
   {
-    RenderToQuad(boundingQuad.pixelDim);
+    RenderToQuad();
     // DrawTexturedQuad();
     DrawBB();
   }
