@@ -15,13 +15,6 @@ struct RenderContext;
 namespace methods
 {
 
-struct OBB
-{
-  glm::vec3 centerWS{};
-  glm::vec3 halfExtents{};
-  glm::mat3 rotation = glm::mat3(1.0);
-};
-
 class Parallax final
 {
   const std::string VERT_PATH  = "shaders/Parallax.hlsl";
@@ -65,26 +58,17 @@ class Parallax final
   ComPtr<ID3D11RasterizerState>     mBBDebugRSState;
   std::vector<glm::dmat4>           mBBTransforms;
 
-  ComPtr<ID3D11Buffer> mQuadVertBuf;
-  ComPtr<ID3D11Buffer> mQuadIndexBuf;
-  RenderProgramHandle  mQuadDebugShadersHandle;
+  ComPtr<ID3D11Texture2D>          mImposterCubeTexture;
+  ComPtr<ID3D11ShaderResourceView> mImposterTextureView;
+  ComPtr<ID3D11RenderTargetView>   mImposterTarget;
+  ComPtr<ID3D11Texture2D>          mImposterDepthBuffer;
+  ComPtr<ID3D11DepthStencilView>   mImposterDepthView;
+  ComPtr<ID3D11Buffer>             mImposterTargetCB;
 
-  ComPtr<ID3D11Texture2D>          mQuadTexture;
-  ComPtr<ID3D11ShaderResourceView> mQuadView;
-  ComPtr<ID3D11RenderTargetView>   mQuadTarget;
-  ComPtr<ID3D11Texture2D>          mQuadDepth;
-  ComPtr<ID3D11DepthStencilView>   mQuadDepthView;
-  ComPtr<ID3D11Buffer>             mQuadTargetCB;
-
-  RenderProgramHandle              mTexQuadShaderHandle;
-  ComPtr<ID3D11SamplerState>       mTexQuadSamplerState;
-  ComPtr<ID3D11Buffer>             mTexturedQuadVertBuf; // reuse mQuadIndexBUf
-  ComPtr<ID3D11Buffer>             mTexQuadConstantBuf;
-  ComPtr<ID3D11ShaderResourceView> mQuadDepthTexView;
+  ComPtr<ID3D11SamplerState>       mImposterSamplerState;
+  ComPtr<ID3D11ShaderResourceView> mImposterDepthTexView;
 
   RenderProgramHandle mBBTexShaderHandle;
-
-  OBB mObb;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);

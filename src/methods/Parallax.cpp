@@ -156,45 +156,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .InstanceDataStepRate = 0,
         },
       })},
-    mBBDebugConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
-    mQuadDebugShadersHandle{shaderWatcher.RegisterShader(
-      QUAD_DEBUG_VERT_PATH,
-      QUAD_DEBUG_PIXEL_PATH,
-      {
-        {
-          .SemanticName         = "POSITION",
-          .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32A32_FLOAT,
-          .InputSlot            = 0,
-          .AlignedByteOffset    = 0,
-          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
-          .InstanceDataStepRate = 0,
-        },
-      })},
-    mTexQuadShaderHandle{shaderWatcher.RegisterShader(
-      TEXTURED_QUAD_VERT_PATH,
-      TEXTURED_QUAD_PIXEL_PATH,
-      {
-        {
-          .SemanticName         = "POSITION",
-          .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
-          .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(TexturedQuadVertex, position),
-          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
-          .InstanceDataStepRate = 0,
-        },
-        {
-          .SemanticName         = "TEXCOORD",
-          .SemanticIndex        = 0,
-          .Format               = DXGI_FORMAT_R32G32_FLOAT,
-          .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(TexturedQuadVertex, texCoord),
-          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
-          .InstanceDataStepRate = 0,
-        }, // todo rest of init
-      })},
-    mTexQuadConstantBuf{dx::CreateConstantBuffer<TextureQuadCB>(device, nullptr)}
+    mBBDebugConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)}
 {
   mBBDebugIndexCount = sBBIndices.size();
 
@@ -211,19 +173,12 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
 
   dx::ThrowIfFailed(mDevice->CreateRasterizerState(&rsDesc, mBBDebugRSState.GetAddressOf()));
 
-  mQuadVertBuf = dx::CreateVertexBuffer<glm::vec4>(mDevice, 4, {}, true);
-
-  std::array<u32, 6> quadIndices = {0, 1, 2, 2, 1, 3};
-
-  mQuadIndexBuf = dx::CreateIndexBuffer<u32>(mDevice, 6, quadIndices);
-
   D3D11_TEXTURE2D_DESC quadTextureDesc = {
     .Width     = 1920,
     .Height    = 1080,
     .MipLevels = 1,
     .ArraySize = 1,
     .Format    = DXGI_FORMAT_R8G8B8A8_UNORM,
-    // Multi sampling here
     .SampleDesc =
       {
         .Count   = 1,
@@ -236,7 +191,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   };
 
   dx::ThrowIfFailed(
-    device->CreateTexture2D(&quadTextureDesc, nullptr, mQuadTexture.GetAddressOf()));
+    device->CreateTexture2D(&quadTextureDesc, nullptr, mImposterCubeTexture.GetAddressOf()));
 
   D3D11_SHADER_RESOURCE_VIEW_DESC quadViewDesc = {
     .Format        = quadTextureDesc.Format,
@@ -248,11 +203,15 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
       },
   };
 
-  dx::ThrowIfFailed(
-    device->CreateShaderResourceView(mQuadTexture.Get(), &quadViewDesc, mQuadView.GetAddressOf()));
+  dx::ThrowIfFailed(device->CreateShaderResourceView(
+    mImposterCubeTexture.Get(),
+    &quadViewDesc,
+    mImposterTextureView.GetAddressOf()));
 
-  dx::ThrowIfFailed(
-    device->CreateRenderTargetView(mQuadTexture.Get(), nullptr, mQuadTarget.GetAddressOf()));
+  dx::ThrowIfFailed(device->CreateRenderTargetView(
+    mImposterCubeTexture.Get(),
+    nullptr,
+    mImposterTarget.GetAddressOf()));
 
   D3D11_TEXTURE2D_DESC quadDepthDesc = {
     .Width     = 1920,
@@ -260,7 +219,6 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     .MipLevels = 1,
     .ArraySize = 1,
     .Format    = DXGI_FORMAT_R24G8_TYPELESS,
-    // Multi sampling here
     .SampleDesc =
       {
         .Count   = 1,
@@ -272,7 +230,8 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
     .MiscFlags      = 0,
   };
 
-  dx::ThrowIfFailed(device->CreateTexture2D(&quadDepthDesc, 0, mQuadDepth.GetAddressOf()));
+  dx::ThrowIfFailed(
+    device->CreateTexture2D(&quadDepthDesc, 0, mImposterDepthBuffer.GetAddressOf()));
 
   D3D11_DEPTH_STENCIL_VIEW_DESC quadDepthStencilViewDesc = {
     .Format        = DXGI_FORMAT_D24_UNORM_S8_UINT,
@@ -285,9 +244,9 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   };
 
   dx::ThrowIfFailed(device->CreateDepthStencilView(
-    mQuadDepth.Get(),
+    mImposterDepthBuffer.Get(),
     &quadDepthStencilViewDesc,
-    mQuadDepthView.GetAddressOf()));
+    mImposterDepthView.GetAddressOf()));
 
   D3D11_SHADER_RESOURCE_VIEW_DESC quadDepthViewDesc = {
     .Format        = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
@@ -300,30 +259,14 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   };
 
   dx::ThrowIfFailed(device->CreateShaderResourceView(
-    mQuadDepth.Get(),
+    mImposterDepthBuffer.Get(),
     &quadDepthViewDesc,
-    mQuadDepthTexView.GetAddressOf()));
+    mImposterDepthTexView.GetAddressOf()));
 
   CD3D11_SAMPLER_DESC samplerDesc{CD3D11_DEFAULT{}};
-  dx::ThrowIfFailed(device->CreateSamplerState(&samplerDesc, mTexQuadSamplerState.GetAddressOf()));
+  dx::ThrowIfFailed(device->CreateSamplerState(&samplerDesc, mImposterSamplerState.GetAddressOf()));
 
-#if 0
-  std::array<TexturedQuadVertex, 4> texQuadVerts = {
-    TexturedQuadVertex{{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    TexturedQuadVertex{{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
-    TexturedQuadVertex{{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    TexturedQuadVertex{{1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
-  };
-#else
-  std::array<TexturedQuadVertex, 4> texQuadVerts = {
-    TexturedQuadVertex{{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
-    TexturedQuadVertex{{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
-    TexturedQuadVertex{{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},
-    TexturedQuadVertex{{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
-  };
-#endif
-  mTexturedQuadVertBuf = dx::CreateVertexBuffer<TexturedQuadVertex>(mDevice, 4, texQuadVerts, true);
-  mQuadTargetCB        = dx::CreateConstantBuffer<SceneData>(mDevice, nullptr);
+  mImposterTargetCB = dx::CreateConstantBuffer<SceneData>(mDevice, nullptr);
 }
 
 void Parallax::SetScene(const Scene &scene)
@@ -386,9 +329,6 @@ void Parallax::SetScene(const Scene &scene)
     mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
     mBBDebugModelConstants.emplace_back(
       dx::CreateConstantBuffer<PerMeshData>(mDevice, &bbDebugData));
-
-    mObb.centerWS    = (bb.min + bb.max) * 0.5;
-    mObb.halfExtents = (bb.max - bb.min) * 0.5;
   }
 }
 
@@ -453,8 +393,8 @@ void Parallax::Draw(
   };
 
   // TODO: keep for visualization
-  const auto DrawBBDebug = [&]() {
-    annotation->BeginEvent(L"DrawBBDebug");
+  const auto DrawBoundingBoxOutline = [&]() {
+    annotation->BeginEvent(L"DrawBoundingBoxOutline");
 
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mBBDebugShadersHandle);
     ID3D11DeviceContext *ctx = renderContext.DeviceContext();
@@ -484,8 +424,8 @@ void Parallax::Draw(
     annotation->EndEvent();
   };
 
-  const auto DrawBB = [&]() {
-    annotation->BeginEvent(L"DrawBB");
+  const auto DrawImposterCube = [&]() {
+    annotation->BeginEvent(L"DrawImposterCube");
 
     RenderProgram        rp  = shaderWatcher.GetRenderProgram(mBBTexShaderHandle);
     ID3D11DeviceContext *ctx = renderContext.DeviceContext();
@@ -503,11 +443,11 @@ void Parallax::Draw(
 
     ctx->PSSetShader(rp.pixelShader, nullptr, 0);
     std::array srvs = {
-      mQuadView.Get(),
-      mQuadDepthTexView.Get(),
+      mImposterTextureView.Get(),
+      mImposterDepthTexView.Get(),
     };
     ctx->PSSetShaderResources(0, srvs.size(), srvs.data());
-    ctx->PSSetSamplers(0, 1, mTexQuadSamplerState.GetAddressOf());
+    ctx->PSSetSamplers(0, 1, mImposterSamplerState.GetAddressOf());
     ctx->OMSetRenderTargets(
       1,
       renderContext.backbufferRTV.GetAddressOf(),
@@ -527,19 +467,20 @@ void Parallax::Draw(
     annotation->BeginEvent(L"RenderToQuad");
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
-    dx::ThrowIfFailed(ctx->Map(mQuadTargetCB.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
+    dx::ThrowIfFailed(
+      ctx->Map(mImposterTargetCB.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
     auto *sceneData = reinterpret_cast<SceneData *>(mapped.pData);
 
     sceneData->modelView =
       projection * camera * glm::translate(glm::dmat4(1.0), modelPos); // rotation * t;
 
-    ctx->Unmap(mQuadTargetCB.Get(), 0);
+    ctx->Unmap(mImposterTargetCB.Get(), 0);
 
     RenderProgram        rp           = shaderWatcher.GetRenderProgram(mShadersHandle);
     ID3D11DeviceContext *ctx          = renderContext.DeviceContext();
     f32                  clearColor[] = {0.0, 0.0, 0.0, 1.0};
-    ctx->ClearRenderTargetView(mQuadTarget.Get(), clearColor);
-    ctx->ClearDepthStencilView(mQuadDepthView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+    ctx->ClearRenderTargetView(mImposterTarget.Get(), clearColor);
+    ctx->ClearDepthStencilView(mImposterDepthView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
 
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
@@ -548,12 +489,12 @@ void Parallax::Draw(
     ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
     ctx->IASetInputLayout(rp.inputLayout);
     ctx->VSSetShader(rp.vertexShader, nullptr, 0);
-    ctx->VSSetConstantBuffers(0, 1, mQuadTargetCB.GetAddressOf());
+    ctx->VSSetConstantBuffers(0, 1, mImposterTargetCB.GetAddressOf());
 
     ctx->RSSetState(renderContext.rasterizerState.Get());
 
     ctx->PSSetShader(rp.pixelShader, nullptr, 0);
-    ctx->OMSetRenderTargets(1, mQuadTarget.GetAddressOf(), mQuadDepthView.Get());
+    ctx->OMSetRenderTargets(1, mImposterTarget.GetAddressOf(), mImposterDepthView.Get());
     for (u32 i = 0; i < mDraws.size(); i++)
     {
       const DrawOffsets draw = mDraws[i];
@@ -578,7 +519,7 @@ void Parallax::Draw(
   if (drawModelChk)
     DrawModel();
   if (drawBBDebugChk)
-    DrawBBDebug();
+    DrawBoundingBoxOutline();
   glm::vec3 screenCenter = camera * glm::vec4{0, 0, 0, 1};
   screenCenter = glm::translate(glm::mat4(1.0), -screenCenter) * glm::vec4{screenCenter, 1.0};
   ImGui::Text("camera space center: (%f, %f, %f)", screenCenter.x, screenCenter.y, screenCenter.z);
@@ -586,7 +527,7 @@ void Parallax::Draw(
   {
     RenderToQuad();
     // DrawTexturedQuad();
-    DrawBB();
+    DrawImposterCube();
   }
 }
 
