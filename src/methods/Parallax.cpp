@@ -29,22 +29,6 @@ struct BBDebugVertex
   glm::vec3 color;
 };
 
-struct TexturedQuadVertex
-{
-  glm::vec3 position;
-  glm::vec2 texCoord;
-};
-
-struct TextureQuadCB
-{
-  glm::mat4 mvp;
-  glm::vec4 pos;
-  glm::vec4 cameraRight;
-  glm::vec4 cameraUp;
-  glm::vec2 texScale;
-  glm::vec2 billboardScale;
-};
-
 static std::vector<BBDebugVertex> sBBVertices = {
   {{-1.0f, 1.0f, -1.0f}, {0, 0, 1}},
   {{1.0f, 1.0f, -1.0f}, {0, 1, 0}},

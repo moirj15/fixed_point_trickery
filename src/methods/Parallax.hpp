@@ -26,12 +26,6 @@ class Parallax final
   const std::string BB_TEXTURED_VERT_PATH  = "shaders/BoundingBoxTextured.hlsl";
   const std::string BB_TEXTURED_PIXEL_PATH = "shaders/BoundingBoxTextured.hlsl";
 
-  const std::string QUAD_DEBUG_VERT_PATH  = "shaders/PassThrough.hlsl";
-  const std::string QUAD_DEBUG_PIXEL_PATH = "shaders/PassThrough.hlsl";
-
-  const std::string TEXTURED_QUAD_VERT_PATH  = "shaders/TexturedQuad.hlsl";
-  const std::string TEXTURED_QUAD_PIXEL_PATH = "shaders/TexturedQuad.hlsl";
-
   struct DrawOffsets
   {
     u32 startIndex{};
