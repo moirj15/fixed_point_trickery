@@ -34,7 +34,8 @@ VSOut VSMain(Vertex vertex)
 {
   VSOut ret = (VSOut)0;
 
-  float4x4 mvp = mul(sceneData.mvp, perMesh.transform);
+  //float4x4 mvp = mul(sceneData.mvp, perMesh.transform);
+  float4x4 mvp = sceneData.mvp;
   ret.pos      = mul(mvp, float4(vertex.pos, 1.0f));
   ret.color = vertex.color;
   return ret;

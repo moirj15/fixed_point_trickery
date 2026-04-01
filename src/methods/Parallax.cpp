@@ -255,11 +255,12 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
 
 void Parallax::SetScene(const Scene &scene)
 {
-  mDraws                 = {};
-  mModelConstants        = {};
-  mBBDebugModelConstants = {};
-  mBBTransforms          = {};
-  mScene                 = scene;
+  mDraws          = {};
+  mModelConstants = {};
+  mBBDebugModelConstants.Reset();
+  // mBBTransforms = {};
+  mBoundingBox = {};
+  mScene       = scene;
   std::vector<VertexFormat> vertices;
   std::vector<u32>          indices;
 
@@ -304,16 +305,19 @@ void Parallax::SetScene(const Scene &scene)
       .transform = scene.model.transforms[i],
     };
     const BoundingBox &bb = scene.model.parts[i].boundingBox;
-    PerMeshData        bbDebugData{
-             .transform = glm::translate(
-        glm::scale(scene.model.transforms[i], bb.GetScale()),
-        glm::vec3{bb.max + bb.min} / 2.0f),
-    };
-    mBBTransforms.emplace_back(bbDebugData.transform);
+
+    mBoundingBox.min = glm::min(mBoundingBox.min, bb.min);
+    mBoundingBox.max = glm::max(mBoundingBox.max, bb.max);
+
+    // mBBTransforms.emplace_back(bbDebugData.transform);
     mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
-    mBBDebugModelConstants.emplace_back(
-      dx::CreateConstantBuffer<PerMeshData>(mDevice, &bbDebugData));
   }
+  PerMeshData bbDebugData{
+    .transform = glm::translate(
+      glm::scale(glm::mat4(1.0), mBoundingBox.GetScale()),
+      glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
+  };
+  mBBDebugModelConstants = dx::CreateConstantBuffer<PerMeshData>(mDevice, &bbDebugData);
 }
 
 void Parallax::Draw(
@@ -343,7 +347,11 @@ void Parallax::Draw(
   dx::ThrowIfFailed(
     ctx->Map(mBBDebugConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped2));
   SceneData *data2 = reinterpret_cast<SceneData *>(mapped2.pData);
-  data2->modelView = cameraProjection; // * glm::translate(glm::identity<glm::dmat4>(), modelPos);
+  data2->modelView =
+    glm::mat4{cameraProjection}
+    * glm::scale(
+      glm::mat4(1.0),
+      mBoundingBox.GetScale()); // * glm::translate(glm::identity<glm::dmat4>(), modelPos);
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 
   const auto DrawModel = [&]() {
@@ -399,12 +407,9 @@ void Parallax::Draw(
       1,
       renderContext.backbufferRTV.GetAddressOf(),
       renderContext.depthStencilView.Get());
-    for (u32 i = 0; i < mDraws.size(); i++)
-    {
-      const DrawOffsets draw = mDraws[i];
-      ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
-      ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
-    }
+
+    ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants.GetAddressOf());
+    ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
     annotation->EndEvent();
   };
 
@@ -436,12 +441,13 @@ void Parallax::Draw(
       1,
       renderContext.backbufferRTV.GetAddressOf(),
       renderContext.depthStencilView.Get());
-    for (u32 i = 0; i < mDraws.size(); i++)
-    {
-      const DrawOffsets draw = mDraws[i];
-      ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
-      ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
-    }
+
+    // for (u32 i = 0; i < mDraws.size(); i++)
+    //{
+    // ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
+    ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
+    //}
+
     std::array<ID3D11ShaderResourceView *, 2> np = {nullptr, nullptr};
     ctx->PSSetShaderResources(0, np.size(), np.data());
     annotation->EndEvent();

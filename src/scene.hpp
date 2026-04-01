@@ -5,6 +5,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <numeric>
 #include <vector>
 
 struct ModelVertex
@@ -16,8 +17,8 @@ struct ModelVertex
 
 struct BoundingBox
 {
-  glm::dvec3 min{};
-  glm::dvec3 max{};
+  glm::dvec3 min{std::numeric_limits<double>::max()};
+  glm::dvec3 max{std::numeric_limits<double>::min()};
 
   glm::vec3 GetScale() const
   {

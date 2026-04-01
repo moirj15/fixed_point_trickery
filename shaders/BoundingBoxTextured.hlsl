@@ -8,20 +8,20 @@ cbuffer Constants : register(b0)
   SceneData sceneData;
 };
 
-struct PerMesh
-{
-  float4x4 transform;
-};
-
-cbuffer Constants : register(b1)
-{
-  PerMesh perMesh;
-};
+//struct PerMesh
+//{
+//  float4x4 transform;
+//};
+//
+//cbuffer Constants : register(b1)
+//{
+//  PerMesh perMesh;
+//};
 
 struct Vertex
 {
   float3 pos : POSITION;
-  float3 color: COLOR;
+  float3 color : COLOR;
 };
 
 struct VSOut
@@ -33,11 +33,11 @@ struct VSOut
 
 VSOut VSMain(Vertex vertex)
 {
-  VSOut ret = (VSOut)0;
+  VSOut ret = (VSOut) 0;
 
-  float4x4 mvp = mul(sceneData.mvp, perMesh.transform);
-  ret.pos      = mul(mvp, float4(vertex.pos, 1.0f));
-  ret.clipSpaceP= mul(mvp, float4(vertex.pos, 1.0f));
+  //float4x4 mvp = mul(sceneData.mvp, perMesh.transform);
+  ret.pos = mul(sceneData.mvp, float4(vertex.pos, 1.0f));
+  ret.clipSpaceP = mul(sceneData.mvp, float4(vertex.pos, 1.0f));
   ret.color = vertex.color;
   return ret;
 }
@@ -52,7 +52,7 @@ struct PSOut
   float depth : SV_DEPTH;
 };
 
-PSOut PSMain(VSOut vsOut) 
+PSOut PSMain(VSOut vsOut)
 {
   float2 uv = vsOut.clipSpaceP.xy / vsOut.clipSpaceP.w;
   uv = (uv + 1.0) / 2.0;
@@ -61,7 +61,7 @@ PSOut PSMain(VSOut vsOut)
   //return float4(vsOut.color, 1.0);
   //return float4(uv, 0.0, 1.0);
   PSOut psOut = (PSOut) 0;
-   psOut.color = tex.Sample(samp, uv);
+  psOut.color = tex.Sample(samp, uv);
   psOut.depth = depthTex.Sample(samp, uv).r;
   return psOut;
 }

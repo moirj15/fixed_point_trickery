@@ -43,14 +43,14 @@ class Parallax final
   Scene                             mScene{};
   ID3D11Device3                    *mDevice;
 
-  RenderProgramHandle               mBBDebugShadersHandle;
-  ComPtr<ID3D11Buffer>              mBBDebugVertBuf;
-  ComPtr<ID3D11Buffer>              mBBDebugIndexBuf;
-  ComPtr<ID3D11Buffer>              mBBDebugConstantBuf;
-  std::vector<ComPtr<ID3D11Buffer>> mBBDebugModelConstants;
-  u32                               mBBDebugIndexCount;
-  ComPtr<ID3D11RasterizerState>     mBBDebugRSState;
-  std::vector<glm::dmat4>           mBBTransforms;
+  RenderProgramHandle           mBBDebugShadersHandle;
+  ComPtr<ID3D11Buffer>          mBBDebugVertBuf;
+  ComPtr<ID3D11Buffer>          mBBDebugIndexBuf;
+  ComPtr<ID3D11Buffer>          mBBDebugConstantBuf;
+  ComPtr<ID3D11Buffer>          mBBDebugModelConstants;
+  u32                           mBBDebugIndexCount;
+  ComPtr<ID3D11RasterizerState> mBBDebugRSState;
+  // std::vector<glm::dmat4>       mBBTransforms;
 
   ComPtr<ID3D11Texture2D>          mImposterCubeTexture;
   ComPtr<ID3D11ShaderResourceView> mImposterTextureView;
@@ -63,6 +63,7 @@ class Parallax final
   ComPtr<ID3D11ShaderResourceView> mImposterDepthTexView;
 
   RenderProgramHandle mBBTexShaderHandle;
+  BoundingBox         mBoundingBox;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
