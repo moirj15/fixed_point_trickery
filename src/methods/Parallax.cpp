@@ -260,6 +260,7 @@ void Parallax::SetScene(const Scene &scene)
   mBBDebugModelConstants.Reset();
   // mBBTransforms = {};
   mBoundingBox = {};
+  mPos         = {};
   mScene       = scene;
   std::vector<VertexFormat> vertices;
   std::vector<u32>          indices;
@@ -351,7 +352,7 @@ void Parallax::Draw(
     glm::mat4{cameraProjection}
     * glm::scale(
       glm::mat4(1.0),
-      mBoundingBox.GetScale()); // * glm::translate(glm::identity<glm::dmat4>(), modelPos);
+      mBoundingBox.GetScale()); //* glm::translate(glm::identity<glm::mat4>(), glm::vec3{modelPos});
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 
   const auto DrawModel = [&]() {

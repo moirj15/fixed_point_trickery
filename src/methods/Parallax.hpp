@@ -64,6 +64,7 @@ class Parallax final
 
   RenderProgramHandle mBBTexShaderHandle;
   BoundingBox         mBoundingBox;
+  glm::vec3           mPos;
 
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
