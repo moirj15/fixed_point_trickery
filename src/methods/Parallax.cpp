@@ -358,8 +358,6 @@ void Parallax::Draw(
     mBoundingBox.GetScale());
   data2->modelView = glm::mat4{cameraProjection} * t;
 
-  //* glm::translate(glm::identity<glm::mat4>(), glm::vec3{modelPos});
-  //* glm::scale(glm::mat4(1.0), mBoundingBox.GetScale());
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 
   const auto DrawModel = [&]() {
