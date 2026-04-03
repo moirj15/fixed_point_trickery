@@ -73,10 +73,10 @@ int main(int argc, char **argv)
 
   glm::dmat4 projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
 
-  ArcballCamera arcballCamera{
-    glm::dvec3{0.0, 0.0, 5.0},
-    glm::dvec3{0.0, 0.0, -1.0},
-    glm::dvec3{0.0, 1.0, 0.0}};
+  const glm::dvec3 eyeStart    = {0.0, 0.0, 5.0};
+  const glm::dvec3 targetStart = eyeStart + glm::dvec3{0.0, 0.0, -5.0};
+  const glm::dvec3 up          = {0.0, 1.0, 0.0};
+  ArcballCamera    arcballCamera{eyeStart, targetStart, up};
 
   SDL_Event e;
   bool      running       = true;
@@ -113,6 +113,7 @@ int main(int argc, char **argv)
 
   glm::vec3  modelPos{0.0, 0.0, 0.0};
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
+  glm::dvec3 sceneOrigin{0.0};
 
   while (running)
   {
@@ -176,6 +177,13 @@ int main(int argc, char **argv)
 
     ImGui::Separator();
     ImGui::InputFloat3("model position", glm::value_ptr(modelPos));
+    ImGui::InputDouble("Scene Origin X ", &sceneOrigin.x);
+    ImGui::InputDouble("Scene Origin Y ", &sceneOrigin.y);
+    ImGui::InputDouble("Scene Origin Z ", &sceneOrigin.z);
+    if (ImGui::Button("Set Origin"))
+    {
+      arcballCamera = {sceneOrigin + eyeStart, sceneOrigin + targetStart, up};
+    }
 
     ImGui::Text(
       "Camera distance from Model: %lf meters",

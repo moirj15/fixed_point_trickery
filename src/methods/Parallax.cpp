@@ -354,7 +354,9 @@ void Parallax::Draw(
   SceneData *data2 = reinterpret_cast<SceneData *>(mapped2.pData);
 
   glm::mat4 t = glm::scale(
-    glm::translate(glm::mat4(1.0), glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
+    glm::translate(
+      glm::mat4(1.0),
+      glm::vec3{modelPos} + glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
     mBoundingBox.GetScale());
   data2->modelView = glm::mat4{cameraProjection} * t;
 
