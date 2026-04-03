@@ -457,8 +457,8 @@ void Parallax::Draw(
     annotation->EndEvent();
   };
 
-  auto RenderToQuad = [&]() {
-    annotation->BeginEvent(L"RenderToQuad");
+  auto RenderToImposterTexture = [&]() {
+    annotation->BeginEvent(L"RenderToImposterTexture");
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     dx::ThrowIfFailed(
@@ -519,7 +519,7 @@ void Parallax::Draw(
   ImGui::Text("camera space center: (%f, %f, %f)", screenCenter.x, screenCenter.y, screenCenter.z);
   if (DrawTexturedQuadChk)
   {
-    RenderToQuad();
+    RenderToImposterTexture();
     // DrawTexturedQuad();
     DrawImposterCube();
   }
