@@ -265,12 +265,16 @@ void Parallax::SetScene(const Scene &scene)
   std::vector<VertexFormat> vertices;
   std::vector<u32>          indices;
 
-  u32 vertexStart = 0;
-  u32 startIndex  = 0;
+  u32         vertexStart = 0;
+  u32         startIndex  = 0;
+  BoundingBox bb{};
+
   for (auto &mesh : scene.model.parts)
   {
     for (auto &vertex : mesh.vertices)
     {
+      bb.min = glm::min(bb.min, glm::dvec3{vertex.position});
+      bb.max = glm::max(bb.max, glm::dvec3{vertex.position});
       vertices.push_back(vertex);
     }
     for (auto &index : mesh.indices)
@@ -314,9 +318,9 @@ void Parallax::SetScene(const Scene &scene)
     mModelConstants.emplace_back(dx::CreateConstantBuffer<PerMeshData>(mDevice, &data));
   }
   PerMeshData bbDebugData{
-    .transform = glm::translate(
-      glm::scale(glm::mat4(1.0), mBoundingBox.GetScale()),
-      glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
+    .transform = glm::scale(
+      glm::translate(glm::mat4(1.0), glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
+      mBoundingBox.GetScale()),
   };
   mBBDebugModelConstants = dx::CreateConstantBuffer<PerMeshData>(mDevice, &bbDebugData);
 }
@@ -348,11 +352,14 @@ void Parallax::Draw(
   dx::ThrowIfFailed(
     ctx->Map(mBBDebugConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped2));
   SceneData *data2 = reinterpret_cast<SceneData *>(mapped2.pData);
-  data2->modelView =
-    glm::mat4{cameraProjection}
-    * glm::scale(
-      glm::mat4(1.0),
-      mBoundingBox.GetScale()); //* glm::translate(glm::identity<glm::mat4>(), glm::vec3{modelPos});
+
+  glm::mat4 t = glm::scale(
+    glm::translate(glm::mat4(1.0), glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
+    mBoundingBox.GetScale());
+  data2->modelView = glm::mat4{cameraProjection} * t;
+
+  //* glm::translate(glm::identity<glm::mat4>(), glm::vec3{modelPos});
+  //* glm::scale(glm::mat4(1.0), mBoundingBox.GetScale());
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 
   const auto DrawModel = [&]() {
@@ -443,11 +450,7 @@ void Parallax::Draw(
       renderContext.backbufferRTV.GetAddressOf(),
       renderContext.depthStencilView.Get());
 
-    // for (u32 i = 0; i < mDraws.size(); i++)
-    //{
-    // ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants[i].GetAddressOf());
     ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
-    //}
 
     std::array<ID3D11ShaderResourceView *, 2> np = {nullptr, nullptr};
     ctx->PSSetShaderResources(0, np.size(), np.data());

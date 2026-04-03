@@ -35,12 +35,8 @@ VSOut VSMain(Vertex vertex)
 {
   VSOut ret = (VSOut)0;
 
-
-  // uint index = vertexID + 838;
   float4x4 mvp = mul(sceneData.mvp, perMesh.transform);
   ret.pos      = mul(mvp, float4(vertex.pos, 1.0f));
-  // ret.pos = float4(vertices[vertexID].pos, 1.0f);
-  // ret.color = colors[vertexID % 8];
   ret.color = (vertex.normal + 1.0) / 2.0;
   return ret;
 }
