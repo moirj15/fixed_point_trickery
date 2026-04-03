@@ -13,7 +13,7 @@ namespace methods
 
 struct SceneData
 {
-  glm::mat4 modelView;
+  glm::mat4 viewProjection;
 };
 
 struct PerMeshData
@@ -343,7 +343,7 @@ void Parallax::Draw(
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
   SceneData data{
-    .modelView = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos),
+    .viewProjection = cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos),
   };
   memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
   ctx->Unmap(mConstantBuf.Get(), 0);
@@ -358,7 +358,7 @@ void Parallax::Draw(
       glm::mat4(1.0),
       glm::vec3{modelPos} + glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
     mBoundingBox.GetScale());
-  data2->modelView = glm::mat4{cameraProjection} * t;
+  data2->viewProjection = glm::mat4{cameraProjection} * t;
 
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 
@@ -465,7 +465,9 @@ void Parallax::Draw(
       ctx->Map(mImposterTargetCB.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
     auto *sceneData = reinterpret_cast<SceneData *>(mapped.pData);
 
-    sceneData->modelView =
+    glm::mat4 imposterCamera{1.0};
+
+    sceneData->viewProjection =
       projection * camera * glm::translate(glm::dmat4(1.0), modelPos); // rotation * t;
 
     ctx->Unmap(mImposterTargetCB.Get(), 0);

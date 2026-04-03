@@ -111,7 +111,7 @@ int main(int argc, char **argv)
   emulatedDoubleMethod.SetScene(scene);
   parallaxMethod.SetScene(scene);
 
-  glm::vec3  modelPos{0.0, 0.0, 0.0};
+  glm::dvec3 modelPos{0.0, 0.0, 0.0};
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
   glm::dvec3 sceneOrigin{0.0};
 
@@ -176,7 +176,9 @@ int main(int argc, char **argv)
     }
 
     ImGui::Separator();
-    ImGui::InputFloat3("model position", glm::value_ptr(modelPos));
+    ImGui::InputDouble("Model Position X ", &modelPos.x);
+    ImGui::InputDouble("Model Position Y ", &modelPos.y);
+    ImGui::InputDouble("Model Position Z ", &modelPos.z);
     ImGui::InputDouble("Scene Origin X ", &sceneOrigin.x);
     ImGui::InputDouble("Scene Origin Y ", &sceneOrigin.y);
     ImGui::InputDouble("Scene Origin Z ", &sceneOrigin.z);

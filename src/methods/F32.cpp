@@ -11,7 +11,8 @@ namespace methods
 
 struct SceneData
 {
-  glm::mat4 modelView;
+  glm::mat4 viewProjection;
+  glm::mat4 model;
 };
 
 struct PerMeshData
@@ -118,8 +119,8 @@ void F32Method::Update(
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
   SceneData data{
-    .modelView =
-      glm::mat4{cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos)},
+    .viewProjection = glm::mat4{cameraProjection},
+    .model          = glm::translate(glm::identity<glm::dmat4>(), modelPos),
   };
   memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
   ctx->Unmap(mConstantBuf.Get(), 0);

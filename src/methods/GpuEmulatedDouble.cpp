@@ -49,7 +49,8 @@ EmulatedDoubleMat4 DoubleToED(const glm::dmat4 &d)
 
 struct SceneData
 {
-  EmulatedDoubleMat4 modelView;
+  EmulatedDoubleMat4 viewProjection;
+  EmulatedDoubleMat4 model;
 };
 
 struct PerMeshData
@@ -181,8 +182,8 @@ void GpuEmulatedDoubleMethod::Update(
   D3D11_MAPPED_SUBRESOURCE mapped{};
   dx::ThrowIfFailed(ctx->Map(mConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
   SceneData data{
-    .modelView =
-      DoubleToED(cameraProjection * glm::translate(glm::identity<glm::dmat4>(), modelPos)),
+    .viewProjection = DoubleToED(cameraProjection),
+    .model          = DoubleToED(glm::translate(glm::identity<glm::dmat4>(), modelPos)),
   };
   memcpy(mapped.pData, (void *)&data, sizeof(SceneData));
   ctx->Unmap(mConstantBuf.Get(), 0);

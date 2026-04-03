@@ -169,8 +169,10 @@ SS dsadd(SS a, SS b)
 
 struct SceneData
 {
-  float4x4 mvpHigh;
-  float4x4 mvpLow;
+  float4x4 vpHigh;
+  float4x4 vpLow;
+  float4x4 modelHigh;
+  float4x4 modelLow;
 };
 
 cbuffer Constants : register(b0)
@@ -280,10 +282,16 @@ VSOut VSMain(Vertex vertex)
     float4(vertex.posLow, 0.0),
   };
 
-  EmulatedDouble4x4 mvp =
+  EmulatedDouble4x4 vp =
   {
-    sceneData.mvpHigh,
-    sceneData.mvpLow,
+    sceneData.vpHigh,
+    sceneData.vpLow,
+  };
+
+  EmulatedDouble4x4 model =
+  {
+    sceneData.modelHigh,
+    sceneData.modelLow,
   };
 
   EmulatedDouble4x4 transform =
@@ -291,6 +299,8 @@ VSOut VSMain(Vertex vertex)
     perMesh.transformHigh,
     perMesh.transformLow,
   };
+
+  EmulatedDouble4x4 mvp = EDMul(vp, model);
 
   EmulatedDouble4x4 finalMVP = EDMul(mvp, transform);
   EmulatedDouble4 transformedPos = EDMul(finalMVP, pos);

@@ -1,6 +1,7 @@
 struct SceneData
 {
-  float4x4 mvp;
+  float4x4 vp;
+  float4x4 model;
 };
 
 cbuffer Constants : register(b0)
@@ -37,7 +38,7 @@ VSOut VSMain(Vertex vertex)
 
 
   // uint index = vertexID + 838;
-  float4x4 mvp = mul(sceneData.mvp, perMesh.transform);
+  float4x4 mvp = mul(mul(sceneData.vp, sceneData.model), perMesh.transform);
   ret.pos      = mul(mvp, float4(vertex.pos, 1.0f));
   // ret.pos = float4(vertices[vertexID].pos, 1.0f);
   // ret.color = colors[vertexID % 8];
