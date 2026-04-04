@@ -25,7 +25,9 @@ enum class Method
 {
   F32,
   CpuDouble,
+#if 0
   GpuDouble,
+#endif
   GpuEmulatedDouble,
   Parallax,
 };
@@ -115,6 +117,44 @@ int main(int argc, char **argv)
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
   glm::dvec3 sceneOrigin{0.0};
 
+  std::array distances = {
+    1e0 + 5.0,
+    1e1 + 5.0,
+    1e2 + 5.0,
+    1e3 + 5.0,
+    1e4 + 5.0,
+    1e5 + 5.0,
+    1e6 + 5.0,
+    1e7 + 5.0,
+    1e8 + 5.0,
+    1e9 + 5.0,
+    1e10 + 5.0,
+    1e11 + 5.0,
+    1e12 + 5.0,
+    1e15 + 5.0,
+    1e18 + 5.0,
+  };
+
+  std::array distanceLables = {
+    "1e0 + 5.0",
+    "1e2 + 5.0",
+    "1e3 + 5.0",
+    "1e4 + 5.0",
+    "1e5 + 5.0",
+    "1e6 + 5.0",
+    "1e7 + 5.0",
+    "1e8 + 5.0",
+    "1e9 + 5.0",
+    "1e10 + 5.0",
+    "1e11 + 5.0",
+    "1e12 + 5.0",
+    "1e15 + 5.0",
+    "1e18 + 5.0",
+  };
+  i32  currentDistance = 0;
+  bool runTests        = false;
+  i32  testFrame       = 0;
+
   while (running)
   {
     lastTime        = currTime;
@@ -142,10 +182,12 @@ int main(int argc, char **argv)
     {
       method = Method::CpuDouble;
     }
+#if 0
     else if (ImGui::RadioButton("GPU Double Method", method == Method::GpuDouble))
     {
       method = Method::GpuDouble;
     }
+#endif
     else if (ImGui::RadioButton("Emulated Double Method", method == Method::GpuEmulatedDouble))
     {
       method = Method::GpuEmulatedDouble;
@@ -176,14 +218,19 @@ int main(int argc, char **argv)
     }
 
     ImGui::Separator();
-    ImGui::InputDouble("Model Position X ", &modelPos.x);
-    ImGui::InputDouble("Model Position Y ", &modelPos.y);
-    ImGui::InputDouble("Model Position Z ", &modelPos.z);
-    ImGui::InputDouble("Scene Origin X ", &sceneOrigin.x);
-    ImGui::InputDouble("Scene Origin Y ", &sceneOrigin.y);
-    ImGui::InputDouble("Scene Origin Z ", &sceneOrigin.z);
+
+    // ImGui::InputDouble("Model Position X ", &modelPos.x);
+    // ImGui::InputDouble("Model Position Y ", &modelPos.y);
+    // ImGui::InputDouble("Model Position Z ", &modelPos.z);
+    // ImGui::InputDouble("Scene Origin X ", &sceneOrigin.x);
+    // ImGui::InputDouble("Scene Origin Y ", &sceneOrigin.y);
+    // ImGui::InputDouble("Scene Origin Z ", &sceneOrigin.z);
+
+    ImGui::ListBox("distances", &currentDistance, distanceLables.data(), distanceLables.size());
     if (ImGui::Button("Set Origin"))
     {
+      modelPos.x    = distances[currentDistance];
+      sceneOrigin.x = distances[currentDistance];
       arcballCamera = {sceneOrigin + eyeStart, sceneOrigin + targetStart, up};
     }
 
@@ -245,6 +292,14 @@ int main(int argc, char **argv)
 
     ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+    if (!runTests && ImGui::Button("run tests"))
+    {
+      runTests = true;
+    }
+    if (testFrame >= 60)
+    {
+    }
+    testFrame++;
 
     switch (method)
     {
@@ -262,6 +317,7 @@ int main(int argc, char **argv)
         glm::dvec3{modelPos});
       cpuDoubleMethod.Draw(ctx, shaderWatcher);
       break;
+#if 0
     case Method::GpuDouble:
       gpuDoubleMethod.Update(
         ctx.DeviceContext(),
@@ -269,6 +325,7 @@ int main(int argc, char **argv)
         glm::dvec3{modelPos});
       gpuDoubleMethod.Draw(ctx, shaderWatcher);
       break;
+#endif
     case Method::GpuEmulatedDouble:
       emulatedDoubleMethod.Update(
         ctx.DeviceContext(),
