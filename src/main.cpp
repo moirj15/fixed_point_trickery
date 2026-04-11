@@ -12,6 +12,7 @@
 #include <SDL2/SDL.h>
 #include <array>
 #include <cassert>
+#include <chrono>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <imgui.h>
@@ -53,6 +54,140 @@ const std::array paths = {
   "models/ISS.glb",
   "models/jwst.glb",
 };
+
+const std::array distances = {
+  1e0 + 5.0,
+  1e1 + 5.0,
+  1e2 + 5.0,
+  1e3 + 5.0,
+  1e4 + 5.0,
+  1e5 + 5.0,
+  1e6 + 5.0,
+  1e7 + 5.0,
+  1e8 + 5.0,
+  1e9 + 5.0,
+  1e10 + 5.0,
+  1e11 + 5.0,
+  1e12 + 5.0,
+  1e15 + 5.0,
+  1e18 + 5.0,
+};
+
+const std::array distanceLables = {
+  "1e0 + 5.0",
+  "1e2 + 5.0",
+  "1e3 + 5.0",
+  "1e4 + 5.0",
+  "1e5 + 5.0",
+  "1e6 + 5.0",
+  "1e7 + 5.0",
+  "1e8 + 5.0",
+  "1e9 + 5.0",
+  "1e10 + 5.0",
+  "1e11 + 5.0",
+  "1e12 + 5.0",
+  "1e15 + 5.0",
+  "1e18 + 5.0",
+};
+
+constexpr i32 TEST_FRAME_COUNT = 60;
+
+template<typename T>
+using TestArray = std::array<T, TEST_FRAME_COUNT>;
+struct TestData
+{
+  TestArray<ComPtr<ID3D11Query>>            gpuDisjointQueries;
+  TestArray<ComPtr<ID3D11Query>>            gpuStarts;
+  TestArray<ComPtr<ID3D11Query>>            gpuEnds;
+  TestArray<std::chrono::microseconds>      cpuTimes;
+  TestArray<ComPtr<ID3D11Texture2D>>        testTargets;
+  TestArray<ComPtr<ID3D11RenderTargetView>> testTargetViews;
+};
+
+struct TestRun
+{
+  TestData cpuDoubleData;
+  TestData f32Data;
+  TestData emulatedDoubleData;
+  TestData parallaxData;
+};
+
+void RunTests(
+  methods::F32Method               &f32Method,
+  methods::CpuDoubleMethod         &cpuDoubleMethod,
+  methods::GpuEmulatedDoubleMethod &gpuEmulatedDoubleMethod,
+  methods::Parallax                &parallax,
+  dx::RenderContext                &ctx,
+  ShaderWatcher                    &shaderWatcher)
+{
+  TestRun testRun{};
+
+  auto InitRenderTarget = [&ctx](TestData &data) {
+    for (u32 i = 0; i < TEST_FRAME_COUNT; i++)
+    {
+      auto                &target     = data.testTargets[i];
+      auto                &view       = data.testTargetViews[i];
+      D3D11_TEXTURE2D_DESC targetDesc = {
+        .Width     = 1920,
+        .Height    = 1080,
+        .MipLevels = 1,
+        .ArraySize = 1,
+        .Format    = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .SampleDesc =
+          {
+            .Count   = 1,
+            .Quality = 0,
+          },
+        .Usage          = D3D11_USAGE_DEFAULT,
+        .BindFlags      = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
+        .CPUAccessFlags = 0,
+        .MiscFlags      = 0,
+      };
+
+      dx::ThrowIfFailed(ctx.device->CreateTexture2D(&targetDesc, nullptr, target.GetAddressOf()));
+      dx::ThrowIfFailed(
+        ctx.device->CreateRenderTargetView(target.Get(), nullptr, view.GetAddressOf()));
+
+      auto &gpuDisjointQuery = data.gpuDisjointQueries[i];
+      auto &gpuStart         = data.gpuStarts[i];
+      auto &gpuEnd;
+    }
+  };
+
+  for (i32 i = 0; i < TEST_FRAME_COUNT; i++)
+  {
+    InitRenderTarget(
+      testRun.cpuDoubleData.testTargets[i],
+      testRun.cpuDoubleData.testTargetViews[i]);
+    InitRenderTarget(testRun.f32Data.testTargets[i], testRun.f32Data.testTargetViews[i]);
+    InitRenderTarget(
+      testRun.emulatedDoubleData.testTargets[i],
+      testRun.emulatedDoubleData.testTargetViews[i]);
+    InitRenderTarget(testRun.parallaxData.testTargets[i], testRun.parallaxData.testTargetViews[i]);
+  }
+
+  glm::dmat4 projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
+  glm::dvec3 modelPos{0.0, 0.0, 0.0};
+  glm::dvec3 sceneOrigin{0.0};
+
+  const glm::dvec3 eyeStart    = {0.0, 0.0, 5.0};
+  const glm::dvec3 targetStart = eyeStart + glm::dvec3{0.0, 0.0, -5.0};
+  const glm::dvec3 up          = {0.0, 1.0, 0.0};
+  ArcballCamera    arcballCamera{eyeStart, targetStart, up};
+  modelPos.x    = distances[0];
+  sceneOrigin.x = distances[0];
+  arcballCamera = {sceneOrigin + eyeStart, sceneOrigin + targetStart, up};
+
+  for (i32 i = 0; i < TEST_FRAME_COUNT; i++)
+  {
+    auto start = std::chrono::high_resolution_clock::now();
+    cpuDoubleMethod.Update(ctx.context.Get(), projection * arcballCamera.transform(), modelPos);
+    cpuDoubleMethod.Draw(ctx, shaderWatcher);
+    auto end = std::chrono::high_resolution_clock::now();
+    testRun.cpuDoubleData.cpuTimes[i] =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  }
+}
 
 int main(int argc, char **argv)
 {
@@ -117,40 +252,6 @@ int main(int argc, char **argv)
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
   glm::dvec3 sceneOrigin{0.0};
 
-  std::array distances = {
-    1e0 + 5.0,
-    1e1 + 5.0,
-    1e2 + 5.0,
-    1e3 + 5.0,
-    1e4 + 5.0,
-    1e5 + 5.0,
-    1e6 + 5.0,
-    1e7 + 5.0,
-    1e8 + 5.0,
-    1e9 + 5.0,
-    1e10 + 5.0,
-    1e11 + 5.0,
-    1e12 + 5.0,
-    1e15 + 5.0,
-    1e18 + 5.0,
-  };
-
-  std::array distanceLables = {
-    "1e0 + 5.0",
-    "1e2 + 5.0",
-    "1e3 + 5.0",
-    "1e4 + 5.0",
-    "1e5 + 5.0",
-    "1e6 + 5.0",
-    "1e7 + 5.0",
-    "1e8 + 5.0",
-    "1e9 + 5.0",
-    "1e10 + 5.0",
-    "1e11 + 5.0",
-    "1e12 + 5.0",
-    "1e15 + 5.0",
-    "1e18 + 5.0",
-  };
   i32  currentDistance = 0;
   bool runTests        = false;
   i32  testFrame       = 0;
@@ -292,14 +393,10 @@ int main(int argc, char **argv)
 
     ctx.context->ClearRenderTargetView(ctx.backbufferRTV.Get(), clearColor);
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
-    if (!runTests && ImGui::Button("run tests"))
+    if (ImGui::Button("run tests"))
     {
-      runTests = true;
+      RunTests(f32Method, cpuDoubleMethod, emulatedDoubleMethod, parallaxMethod, ctx);
     }
-    if (testFrame >= 60)
-    {
-    }
-    testFrame++;
 
     switch (method)
     {
