@@ -55,6 +55,7 @@ struct PSOut
 PSOut PSMain(VSOut vsOut)
 {
   float2 uv = vsOut.clipSpaceP.xy / vsOut.clipSpaceP.w;
+  //uv += float2(0.5 / 1920.0, 0.5 / 1080.0);
   uv = (uv + 1.0) / 2.0;
   uv.y = 1.0 - uv.y;
   //return 0.0.xxxx;

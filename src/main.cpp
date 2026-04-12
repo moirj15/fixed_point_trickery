@@ -259,6 +259,7 @@ int main(int argc, char **argv)
   std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> imposterEnds;
 
   dx::RTV groundTruth    = dx::CreateRenderTargetAndView(ctx.Device());
+  dx::RTV f32Target      = dx::CreateRenderTargetAndView(ctx.Device());
   dx::RTV edTarget       = dx::CreateRenderTargetAndView(ctx.Device());
   dx::RTV imposterTarget = dx::CreateRenderTargetAndView(ctx.Device());
   bool    runComparison  = false;
@@ -419,7 +420,7 @@ int main(int argc, char **argv)
     if (ImGui::Button("run comparison"))
     {
       runComparison = true;
-      method        = Method::GpuEmulatedDouble;
+      method        = Method::F32;
     }
     ID3D11RenderTargetView *targetView = ctx.backbufferRTV.Get();
     // targetView                         = edTarget.view.Get();
@@ -432,6 +433,8 @@ int main(int argc, char **argv)
       cpuDoubleMethod.Draw(ctx, shaderWatcher, groundTruth.view.Get(), runTests, testFrame);
       ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
 
+      if (method == Method::F32)
+        targetView = f32Target.view.Get();
       if (method == Method::GpuEmulatedDouble)
         targetView = edTarget.view.Get();
       if (method == Method::Parallax)
@@ -456,7 +459,7 @@ int main(int argc, char **argv)
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
-      f32Method.Draw(ctx, shaderWatcher);
+      f32Method.Draw(ctx, shaderWatcher, targetView);
       break;
     case Method::CpuDouble:
       cpuDoubleMethod.Update(
@@ -538,28 +541,48 @@ int main(int argc, char **argv)
       ctx.DeviceContext()->Unmap(stagingTex.Get(), 0);
       return data;
     };
+    auto computeAvgPixelDelta = [&](ID3D11Texture2D *tex) {
+      auto   groundTruthData = copyTexToCpu(groundTruth.target.Get());
+      auto   d               = copyTexToCpu(tex);
+      double diffAvg         = 0.0;
+      for (size_t i = 0; i < groundTruthData.size(); i++)
+      {
+        diffAvg += groundTruthData[i] - d[i];
+        // if (groundTruthData[i] != d[i])
+        //{
+        //   std::println("dif");
+        // }
+      }
+      diffAvg /= (double)groundTruthData.size();
+      // std::println("dif {}", diffAvg);
+      return diffAvg;
+    };
     if (runComparison)
     {
       testFrame++;
-      auto groundTruthData = copyTexToCpu(groundTruth.target.Get());
-      if (method == Method::GpuEmulatedDouble)
+      if (method == Method::F32)
       {
-        auto   d       = copyTexToCpu(edTarget.target.Get());
-        double diffAvg = 0.0;
-        for (size_t i = 0; i < groundTruthData.size(); i++)
-        {
-          diffAvg += groundTruthData[i] - d[i];
-          if (groundTruthData[i] != d[i])
-          {
-            // std::println("dif");
-          }
-        }
-        diffAvg /= (double)groundTruthData.size();
-        std::println("dif {}", diffAvg);
+        auto avg = computeAvgPixelDelta(f32Target.target.Get());
+        std::println("f32 avg pixel diff {}", avg);
+      }
+      else if (method == Method::GpuEmulatedDouble)
+      {
+        auto avg = computeAvgPixelDelta(edTarget.target.Get());
+        std::println("ed avg pixel diff {}", avg);
+      }
+      else if (method == Method::Parallax)
+      {
+        auto avg = computeAvgPixelDelta(imposterTarget.target.Get());
+        std::println("imposter avg pixel diff {}", avg);
       }
       if (testFrame >= 60)
       {
-        if (method == Method::GpuEmulatedDouble)
+        testFrame = 0;
+        if (method == Method::F32)
+        {
+          method = Method::GpuEmulatedDouble;
+        }
+        else if (method == Method::GpuEmulatedDouble)
         {
           method = Method::Parallax;
         }
