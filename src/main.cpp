@@ -126,28 +126,8 @@ void RunTests(
   auto InitRenderTarget = [&ctx](TestData &data) {
     for (u32 i = 0; i < TEST_FRAME_COUNT; i++)
     {
-      auto                &target     = data.testTargets[i];
-      auto                &view       = data.testTargetViews[i];
-      D3D11_TEXTURE2D_DESC targetDesc = {
-        .Width     = 1920,
-        .Height    = 1080,
-        .MipLevels = 1,
-        .ArraySize = 1,
-        .Format    = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .SampleDesc =
-          {
-            .Count   = 1,
-            .Quality = 0,
-          },
-        .Usage          = D3D11_USAGE_DEFAULT,
-        .BindFlags      = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
-        .CPUAccessFlags = 0,
-        .MiscFlags      = 0,
-      };
-
-      dx::ThrowIfFailed(ctx.device->CreateTexture2D(&targetDesc, nullptr, target.GetAddressOf()));
-      dx::ThrowIfFailed(
-        ctx.device->CreateRenderTargetView(target.Get(), nullptr, view.GetAddressOf()));
+      auto &target = data.testTargets[i];
+      auto &view   = data.testTargetViews[i];
 
       auto &gpuDisjointQuery = data.gpuDisjointQueries[i];
       auto &gpuStart         = data.gpuStarts[i];
@@ -277,6 +257,20 @@ int main(int argc, char **argv)
   std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> edEnds;
   std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> imposterStarts;
   std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> imposterEnds;
+
+  dx::RTV groundTruth    = dx::CreateRenderTargetAndView(ctx.Device());
+  dx::RTV edTarget       = dx::CreateRenderTargetAndView(ctx.Device());
+  dx::RTV imposterTarget = dx::CreateRenderTargetAndView(ctx.Device());
+  bool    runComparison  = false;
+
+  D3D11_TEXTURE2D_DESC stagingDesc{};
+  groundTruth.target->GetDesc(&stagingDesc);
+  stagingDesc.BindFlags      = 0;
+  stagingDesc.Usage          = D3D11_USAGE_STAGING;
+  stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+  ComPtr<ID3D11Texture2D> stagingTex;
+  dx::ThrowIfFailed(ctx.device->CreateTexture2D(&stagingDesc, nullptr, stagingTex.GetAddressOf()));
 
   while (running)
   {
@@ -422,6 +416,25 @@ int main(int argc, char **argv)
       method   = Method::CpuDouble;
     }
 
+    if (ImGui::Button("run comparison"))
+    {
+      runComparison = true;
+      method        = Method::GpuEmulatedDouble;
+    }
+    ID3D11RenderTargetView *targetView = ctx.backbufferRTV.Get();
+    if (runComparison)
+    {
+      cpuDoubleMethod.Update(
+        ctx.DeviceContext(),
+        projection * glm::dmat4{arcballCamera.transform()},
+        glm::dvec3{modelPos});
+      cpuDoubleMethod.Draw(ctx, shaderWatcher, groundTruth.view.Get(), runTests, testFrame);
+      if (method == Method::GpuEmulatedDouble)
+        targetView = edTarget.view.Get();
+      if (method == Method::Parallax)
+        targetView = imposterTarget.view.Get();
+    }
+
     if (runTests)
     {
       if (method == Method::GpuEmulatedDouble)
@@ -463,7 +476,7 @@ int main(int argc, char **argv)
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
-      emulatedDoubleMethod.Draw(ctx, shaderWatcher, ctx.backbufferRTV.Get(), runTests, testFrame);
+      emulatedDoubleMethod.Draw(ctx, shaderWatcher, targetView, runTests, testFrame);
       break;
     case Method::Parallax:
       parallaxMethod.Draw(
@@ -479,7 +492,7 @@ int main(int argc, char **argv)
         arcballCamera,
         ctx,
         shaderWatcher,
-        ctx.backbufferRTV.Get(),
+        targetView,
         runTests,
         testFrame);
       break;
@@ -505,6 +518,35 @@ int main(int argc, char **argv)
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     ctx.swapchain->Present(1, 0);
+
+    auto copyTexToCpu = [&](ID3D11Texture2D *tex) {
+      ctx.context->CopyResource(stagingTex.Get(), tex);
+      D3D11_MAPPED_SUBRESOURCE mapped{};
+      std::vector<u32>         data(1920 * 1080);
+      dx::ThrowIfFailed(ctx.DeviceContext()->Map(stagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped));
+      for (u32 i = 0; i < 1080; i++)
+      {
+        u8 *row = ((u8 *)mapped.pData) + i * mapped.RowPitch;
+        memcpy(data.data() + i * 1080, row, 1920 * sizeof(u32));
+      }
+      ctx.DeviceContext()->Unmap(tex, 0);
+      return data;
+    };
+    if (runComparison)
+    {
+      testFrame++;
+      auto groundTruthData = copyTexToCpu(groundTruth.target.Get());
+      if (testFrame >= 60)
+      {
+        if (method == Method::GpuEmulatedDouble)
+        {
+          method = Method::Parallax;
+        }
+        else if (method == Method::Parallax)
+        {
+        }
+      }
+    }
     if (runTests)
     {
       testFrame++;

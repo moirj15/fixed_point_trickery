@@ -289,4 +289,38 @@ inline void WaitForQueryToBeReady(ID3D11DeviceContext3 *ctx, ID3D11Query *disjoi
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
+struct RTV
+{
+  ComPtr<ID3D11Texture2D>        target;
+  ComPtr<ID3D11RenderTargetView> view;
+};
+
+inline RTV CreateRenderTargetAndView(ID3D11Device3 *device)
+{
+  D3D11_TEXTURE2D_DESC targetDesc = {
+    .Width     = 1920,
+    .Height    = 1080,
+    .MipLevels = 1,
+    .ArraySize = 1,
+    .Format    = DXGI_FORMAT_R8G8B8A8_UNORM,
+    .SampleDesc =
+      {
+        .Count   = 1,
+        .Quality = 0,
+      },
+    .Usage          = D3D11_USAGE_DEFAULT,
+    .BindFlags      = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
+    .CPUAccessFlags = 0,
+    .MiscFlags      = 0,
+  };
+
+  ID3D11Texture2D        *target;
+  ID3D11RenderTargetView *view;
+
+  dx::ThrowIfFailed(device->CreateTexture2D(&targetDesc, nullptr, &target));
+  dx::ThrowIfFailed(device->CreateRenderTargetView(target, nullptr, &view));
+
+  return {target, view};
+}
+
 } // namespace dx
