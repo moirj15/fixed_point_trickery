@@ -18,6 +18,7 @@
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_sdl2.h>
+#include <print>
 
 constexpr u32 WIDTH  = 1920;
 constexpr u32 HEIGHT = 1080;
@@ -534,7 +535,31 @@ int main(int argc, char **argv)
             imposterTimes.push_back(std::chrono::duration_cast<std::chrono::microseconds>(
               imposterEnds[i] - imposterStarts[i]));
           }
+
+          std::chrono::microseconds edCpuAvg{};
+          std::chrono::microseconds imposterCPUAvg{};
+          double                    edGpuAvg{};
+          double                    imposterTexGpuAvg{};
+          double                    imposterBoxGpuAvg{};
+          for (size_t i = 0; i < 60; i++)
+          {
+            edCpuAvg += edTimes[i];
+            imposterCPUAvg += imposterTimes[i];
+            edGpuAvg += emulatedDoubleTimings[i];
+            imposterTexGpuAvg += imposterTimings.imposterToTex[i];
+            imposterBoxGpuAvg += imposterTimings.imposterCube[i];
+          }
+          edCpuAvg /= 60.0;
+          imposterCPUAvg /= 60.0;
+          edGpuAvg /= 60.0;
+          imposterTexGpuAvg /= 60.0;
+          imposterBoxGpuAvg /= 60.0;
           testFrame = 0;
+          std::println("ed cpu Avg: {}", edCpuAvg);
+          std::println("ed gpu Avg: {}", edGpuAvg);
+          std::println("imposter cpu Avg: {}", imposterCPUAvg);
+          std::println("imposter tex gpu avg: {}", imposterTexGpuAvg);
+          std::println("imposter box gpu avg: {}", imposterBoxGpuAvg);
         }
         testFrame = 0;
       }
