@@ -422,6 +422,7 @@ int main(int argc, char **argv)
       method        = Method::GpuEmulatedDouble;
     }
     ID3D11RenderTargetView *targetView = ctx.backbufferRTV.Get();
+    // targetView                         = edTarget.view.Get();
     if (runComparison)
     {
       cpuDoubleMethod.Update(
@@ -429,6 +430,8 @@ int main(int argc, char **argv)
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
       cpuDoubleMethod.Draw(ctx, shaderWatcher, groundTruth.view.Get(), runTests, testFrame);
+      ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+
       if (method == Method::GpuEmulatedDouble)
         targetView = edTarget.view.Get();
       if (method == Method::Parallax)
@@ -514,7 +517,10 @@ int main(int argc, char **argv)
     ImGui::End();
 
     ImGui::Render();
-    // ctx.context->OMSetRenderTargets(1, &)
+    ctx.context->OMSetRenderTargets(
+      1,
+      ctx.backbufferRTV.GetAddressOf(),
+      ctx.depthStencilView.Get());
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     ctx.swapchain->Present(1, 0);
@@ -522,20 +528,35 @@ int main(int argc, char **argv)
     auto copyTexToCpu = [&](ID3D11Texture2D *tex) {
       ctx.context->CopyResource(stagingTex.Get(), tex);
       D3D11_MAPPED_SUBRESOURCE mapped{};
-      std::vector<u32>         data(1920 * 1080);
+      std::vector<u32>         data(1920 * 1080, 0);
       dx::ThrowIfFailed(ctx.DeviceContext()->Map(stagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped));
       for (u32 i = 0; i < 1080; i++)
       {
-        u8 *row = ((u8 *)mapped.pData) + i * mapped.RowPitch;
-        memcpy(data.data() + i * 1080, row, 1920 * sizeof(u32));
+        std::span<u8> row = {((u8 *)mapped.pData) + i * mapped.RowPitch, 1080 * sizeof(u32)};
+        memcpy(data.data() + i * 1080, row.data(), 1920 * sizeof(u32));
       }
-      ctx.DeviceContext()->Unmap(tex, 0);
+      ctx.DeviceContext()->Unmap(stagingTex.Get(), 0);
       return data;
     };
     if (runComparison)
     {
       testFrame++;
       auto groundTruthData = copyTexToCpu(groundTruth.target.Get());
+      if (method == Method::GpuEmulatedDouble)
+      {
+        auto   d       = copyTexToCpu(edTarget.target.Get());
+        double diffAvg = 0.0;
+        for (size_t i = 0; i < groundTruthData.size(); i++)
+        {
+          diffAvg += groundTruthData[i] - d[i];
+          if (groundTruthData[i] != d[i])
+          {
+            // std::println("dif");
+          }
+        }
+        diffAvg /= (double)groundTruthData.size();
+        std::println("dif {}", diffAvg);
+      }
       if (testFrame >= 60)
       {
         if (method == Method::GpuEmulatedDouble)
@@ -544,6 +565,7 @@ int main(int argc, char **argv)
         }
         else if (method == Method::Parallax)
         {
+          runComparison = false;
         }
       }
     }
