@@ -72,17 +72,19 @@ public:
   void SetScene(const Scene &scene);
 
   void Draw(
-    u32                   width,
-    u32                   height,
-    ID3D11DeviceContext3 *ctx,
-    const glm::dmat4     &cameraProjection,
-    const glm::dmat4     &camera,
-    const glm::dmat4     &projection,
-    const glm::dvec3     &modelPos,
-    const glm::dvec3     &cameraPos,
-    const ArcballCamera  &arcball,
-    dx::RenderContext    &renderContext,
-    ShaderWatcher        &shaderWatcher);
+    u32                     width,
+    u32                     height,
+    ID3D11DeviceContext3   *ctx,
+    const glm::dmat4       &cameraProjection,
+    const glm::dmat4       &camera,
+    const glm::dmat4       &projection,
+    const glm::dvec3       &modelPos,
+    const glm::dvec3       &cameraPos,
+    const glm::dvec3       &sceneOrigin,
+    const ArcballCamera    &arcball,
+    dx::RenderContext      &renderContext,
+    ShaderWatcher          &shaderWatcher,
+    ID3D11RenderTargetView *targetView);
 };
 
 } // namespace methods

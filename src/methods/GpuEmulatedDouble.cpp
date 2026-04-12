@@ -189,7 +189,10 @@ void GpuEmulatedDoubleMethod::Update(
   ctx->Unmap(mConstantBuf.Get(), 0);
 }
 
-void GpuEmulatedDoubleMethod::Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher)
+void GpuEmulatedDoubleMethod::Draw(
+  dx::RenderContext      &renderContext,
+  ShaderWatcher          &shaderWatcher,
+  ID3D11RenderTargetView *targetView)
 {
   RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
   ID3D11DeviceContext *ctx = renderContext.DeviceContext();
@@ -206,10 +209,7 @@ void GpuEmulatedDoubleMethod::Draw(dx::RenderContext &renderContext, ShaderWatch
   ctx->RSSetState(renderContext.rasterizerState.Get());
 
   ctx->PSSetShader(rp.pixelShader, nullptr, 0);
-  ctx->OMSetRenderTargets(
-    1,
-    renderContext.backbufferRTV.GetAddressOf(),
-    renderContext.depthStencilView.Get());
+  ctx->OMSetRenderTargets(1, &targetView, renderContext.depthStencilView.Get());
   for (u32 i = 0; i < mDraws.size(); i++)
   {
     const DrawOffsets draw = mDraws[i];

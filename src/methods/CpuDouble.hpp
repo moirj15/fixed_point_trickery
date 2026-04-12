@@ -4,6 +4,7 @@
 #include "../scene.hpp"
 #include "../shaderWatcher.hpp"
 
+#include <array>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
@@ -36,6 +37,10 @@ class CpuDoubleMethod final
   Scene          mScene{};
   ID3D11Device3 *mDevice;
 
+  std::array<ComPtr<ID3D11Query>, 60> mGpuDisjointQueries;
+  std::array<ComPtr<ID3D11Query>, 60> mGpuStarts;
+  std::array<ComPtr<ID3D11Query>, 60> mGpuEnds;
+
 public:
   explicit CpuDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
 
@@ -44,7 +49,14 @@ public:
   void
   Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &cameraProjection, const glm::dvec3 &modelPos);
 
-  void Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher);
+  void Draw(
+    dx::RenderContext      &renderContext,
+    ShaderWatcher          &shaderWatcher,
+    ID3D11RenderTargetView *targetView,
+    bool                    recordDrawTime,
+    u32                     testFrameCount);
+
+  std::vector<double> GetTimingData(ID3D11DeviceContext3 *ctx);
 };
 
 } // namespace methods

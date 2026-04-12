@@ -43,7 +43,10 @@ public:
   void
   Update(ID3D11DeviceContext3 *ctx, const glm::dmat4 &cameraProjection, const glm::dvec3 &modelPos);
 
-  void Draw(dx::RenderContext &renderContext, ShaderWatcher &shaderWatcher);
+  void Draw(
+    dx::RenderContext      &renderContext,
+    ShaderWatcher          &shaderWatcher,
+    ID3D11RenderTargetView *targetView);
 };
 
 } // namespace methods

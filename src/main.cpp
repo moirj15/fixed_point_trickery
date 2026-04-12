@@ -150,21 +150,22 @@ void RunTests(
 
       auto &gpuDisjointQuery = data.gpuDisjointQueries[i];
       auto &gpuStart         = data.gpuStarts[i];
-      auto &gpuEnd;
+      // auto &gpuEnd;
     }
   };
 
-  for (i32 i = 0; i < TEST_FRAME_COUNT; i++)
-  {
-    InitRenderTarget(
-      testRun.cpuDoubleData.testTargets[i],
-      testRun.cpuDoubleData.testTargetViews[i]);
-    InitRenderTarget(testRun.f32Data.testTargets[i], testRun.f32Data.testTargetViews[i]);
-    InitRenderTarget(
-      testRun.emulatedDoubleData.testTargets[i],
-      testRun.emulatedDoubleData.testTargetViews[i]);
-    InitRenderTarget(testRun.parallaxData.testTargets[i], testRun.parallaxData.testTargetViews[i]);
-  }
+  // for (i32 i = 0; i < TEST_FRAME_COUNT; i++)
+  //{
+  //   InitRenderTarget(
+  //     testRun.cpuDoubleData.testTargets[i],
+  //     testRun.cpuDoubleData.testTargetViews[i]);
+  //   InitRenderTarget(testRun.f32Data.testTargets[i], testRun.f32Data.testTargetViews[i]);
+  //   InitRenderTarget(
+  //     testRun.emulatedDoubleData.testTargets[i],
+  //     testRun.emulatedDoubleData.testTargetViews[i]);
+  //   InitRenderTarget(testRun.parallaxData.testTargets[i],
+  //   testRun.parallaxData.testTargetViews[i]);
+  // }
 
   glm::dmat4 projection = glm::infinitePerspective(90.0, (double)WIDTH / (double)HEIGHT, 0.001);
   glm::dvec3 modelPos{0.0, 0.0, 0.0};
@@ -182,7 +183,7 @@ void RunTests(
   {
     auto start = std::chrono::high_resolution_clock::now();
     cpuDoubleMethod.Update(ctx.context.Get(), projection * arcballCamera.transform(), modelPos);
-    cpuDoubleMethod.Draw(ctx, shaderWatcher);
+    // cpuDoubleMethod.Draw(ctx, shaderWatcher);
     auto end = std::chrono::high_resolution_clock::now();
     testRun.cpuDoubleData.cpuTimes[i] =
       std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -195,11 +196,26 @@ int main(int argc, char **argv)
 
   dx::RenderContext ctx = dx::InitContext(window);
 
+  auto c = glm::lookAt(glm::vec3{1e9, 0, 0}, {1e9, 0, -100}, {0, 1, 0});
+  auto p = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
+
+  auto vp = p * c;
+
+  auto m   = glm::translate(glm::mat4(1.0), {1e9, 0, 0});
+  auto mvp = vp * m;
+
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO &io = ImGui::GetIO();
   ImGui::StyleColorsClassic();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+  auto      t = glm::translate(glm::mat4(1.0), {42164000.0f, 0.0f, 0.0f});
+  auto      s = glm::scale(glm::mat4(1.0), {1, 1, 1});
+  glm::vec4 v{10.0f, 1.0f, 1.0f, 1.0f};
+
+  auto r = t * s * v;
+  printf("%f %f %f", r.x, r.y, r.z);
 
   ImGui_ImplSDL2_InitForD3D(window.win);
   ImGui_ImplDX11_Init(ctx.Device(), ctx.DeviceContext());
@@ -395,7 +411,8 @@ int main(int argc, char **argv)
     ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
     if (ImGui::Button("run tests"))
     {
-      RunTests(f32Method, cpuDoubleMethod, emulatedDoubleMethod, parallaxMethod, ctx);
+      // RunTests(f32Method, cpuDoubleMethod, emulatedDoubleMethod, parallaxMethod, ctx);
+      runTests = true;
     }
 
     switch (method)
@@ -412,7 +429,7 @@ int main(int argc, char **argv)
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
-      cpuDoubleMethod.Draw(ctx, shaderWatcher);
+      cpuDoubleMethod.Draw(ctx, shaderWatcher, ctx.backbufferRTV.Get(), runTests, testFrame);
       break;
 #if 0
     case Method::GpuDouble:
@@ -428,7 +445,7 @@ int main(int argc, char **argv)
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
-      emulatedDoubleMethod.Draw(ctx, shaderWatcher);
+      emulatedDoubleMethod.Draw(ctx, shaderWatcher, ctx.backbufferRTV.Get());
       break;
     case Method::Parallax:
       parallaxMethod.Draw(
@@ -440,9 +457,11 @@ int main(int argc, char **argv)
         projection,
         glm::dvec3{modelPos},
         glm::dvec3{arcballCamera.eye()},
+        sceneOrigin,
         arcballCamera,
         ctx,
-        shaderWatcher);
+        shaderWatcher,
+        ctx.backbufferRTV.Get());
       break;
     default:
       assert(0);
@@ -455,6 +474,16 @@ int main(int argc, char **argv)
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     ctx.swapchain->Present(1, 0);
+    if (runTests)
+    {
+      testFrame++;
+      if (testFrame >= 60)
+      {
+        runTests     = false;
+        auto timings = cpuDoubleMethod.GetTimingData(ctx.DeviceContext());
+        testFrame    = 0;
+      }
+    }
   }
 
   ImGui_ImplDX11_Shutdown();

@@ -326,17 +326,19 @@ void Parallax::SetScene(const Scene &scene)
 }
 
 void Parallax::Draw(
-  u32                   width,
-  u32                   height,
-  ID3D11DeviceContext3 *ctx,
-  const glm::dmat4     &cameraProjection,
-  const glm::dmat4     &camera,
-  const glm::dmat4     &projection,
-  const glm::dvec3     &modelPos,
-  const glm::dvec3     &cameraPos,
-  const ArcballCamera  &arcball,
-  dx::RenderContext    &renderContext,
-  ShaderWatcher        &shaderWatcher)
+  u32                     width,
+  u32                     height,
+  ID3D11DeviceContext3   *ctx,
+  const glm::dmat4       &cameraProjection,
+  const glm::dmat4       &camera,
+  const glm::dmat4       &projection,
+  const glm::dvec3       &modelPos,
+  const glm::dvec3       &cameraPos,
+  const glm::dvec3       &sceneOrigin,
+  const ArcballCamera    &arcball,
+  dx::RenderContext      &renderContext,
+  ShaderWatcher          &shaderWatcher,
+  ID3D11RenderTargetView *targetView)
 {
   auto *annotation = renderContext.annotation.Get();
 
@@ -379,10 +381,7 @@ void Parallax::Draw(
     ctx->RSSetState(renderContext.rasterizerState.Get());
 
     ctx->PSSetShader(rp.pixelShader, nullptr, 0);
-    ctx->OMSetRenderTargets(
-      1,
-      renderContext.backbufferRTV.GetAddressOf(),
-      renderContext.depthStencilView.Get());
+    ctx->OMSetRenderTargets(1, &targetView, renderContext.depthStencilView.Get());
     for (u32 i = 0; i < mDraws.size(); i++)
     {
       const DrawOffsets draw = mDraws[i];
@@ -411,10 +410,7 @@ void Parallax::Draw(
     ctx->RSSetState(mBBDebugRSState.Get());
 
     ctx->PSSetShader(rp.pixelShader, nullptr, 0);
-    ctx->OMSetRenderTargets(
-      1,
-      renderContext.backbufferRTV.GetAddressOf(),
-      renderContext.depthStencilView.Get());
+    ctx->OMSetRenderTargets(1, &targetView, renderContext.depthStencilView.Get());
 
     ctx->VSSetConstantBuffers(1, 1, mBBDebugModelConstants.GetAddressOf());
     ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
@@ -445,10 +441,7 @@ void Parallax::Draw(
     };
     ctx->PSSetShaderResources(0, srvs.size(), srvs.data());
     ctx->PSSetSamplers(0, 1, mImposterSamplerState.GetAddressOf());
-    ctx->OMSetRenderTargets(
-      1,
-      renderContext.backbufferRTV.GetAddressOf(),
-      renderContext.depthStencilView.Get());
+    ctx->OMSetRenderTargets(1, &targetView, renderContext.depthStencilView.Get());
 
     ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
 
@@ -465,10 +458,19 @@ void Parallax::Draw(
       ctx->Map(mImposterTargetCB.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped));
     auto *sceneData = reinterpret_cast<SceneData *>(mapped.pData);
 
-    glm::mat4 imposterCamera{1.0};
+    glm::vec3 cameraPos      = arcball.eye() - sceneOrigin;
+    glm::vec3 cameraTarget   = arcball.dir();
+    glm::vec3 cameraUp       = arcball.up();
+    glm::mat4 imposterCamera = glm::lookAt(cameraPos, cameraTarget, cameraUp);
 
+#if 0
     sceneData->viewProjection =
       projection * camera * glm::translate(glm::dmat4(1.0), modelPos); // rotation * t;
+#else
+    sceneData->viewProjection =
+      glm::mat4{projection}
+      * imposterCamera; // * glm::translate(glm::mat4(1.0), glm::vec3{modelPos}); // rotation * t;
+#endif
 
     ctx->Unmap(mImposterTargetCB.Get(), 0);
 

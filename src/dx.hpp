@@ -2,6 +2,7 @@
 
 #include "utils.hpp"
 
+#include <chrono>
 #include <d3d11_1.h>
 #include <d3d11_3.h>
 #include <d3d11shader.h>
@@ -12,6 +13,7 @@
 #include <format>
 #include <numeric>
 #include <span>
+#include <thread>
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 struct SDL_Window;
@@ -259,6 +261,32 @@ ComPtr<ID3D11Buffer> CreateVertexBuffer(
   }
 
   return buffer;
+}
+
+inline ID3D11Query *CreateDisjointQuery(ID3D11Device3 *device)
+{
+  D3D11_QUERY_DESC desc{};
+  desc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+
+  ID3D11Query *disjointQuery{};
+  ThrowIfFailed(device->CreateQuery(&desc, &disjointQuery));
+  return disjointQuery;
+}
+
+inline ID3D11Query *CreateTimeQuery(ID3D11Device3 *device)
+{
+  D3D11_QUERY_DESC desc{};
+  desc.Query = D3D11_QUERY_TIMESTAMP;
+
+  ID3D11Query *timestampQuery{};
+  ThrowIfFailed(device->CreateQuery(&desc, &timestampQuery));
+  return timestampQuery;
+}
+
+inline void WaitForQueryToBeReady(ID3D11DeviceContext3 *ctx, ID3D11Query *disjointQuery)
+{
+  while (ctx->GetData(disjointQuery, nullptr, 0, 0) == S_FALSE)
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 } // namespace dx
