@@ -4,6 +4,7 @@
 #include "../scene.hpp"
 #include "../shaderWatcher.hpp"
 
+#include <array>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
@@ -25,15 +26,18 @@ class GpuEmulatedDoubleMethod final
     u32 indexCount{};
   };
 
-  RenderProgramHandle               mShadersHandle;
-  dx::StorageBuffer                 mDrawIDBuf;
-  ComPtr<ID3D11Buffer>              mVertBuf;
-  ComPtr<ID3D11Buffer>              mIndexBuf;
-  ComPtr<ID3D11Buffer>              mConstantBuf;
-  std::vector<DrawOffsets>          mDraws;
-  std::vector<ComPtr<ID3D11Buffer>> mModelConstants;
-  Scene                             mScene{};
-  ID3D11Device3                    *mDevice;
+  RenderProgramHandle                 mShadersHandle;
+  dx::StorageBuffer                   mDrawIDBuf;
+  ComPtr<ID3D11Buffer>                mVertBuf;
+  ComPtr<ID3D11Buffer>                mIndexBuf;
+  ComPtr<ID3D11Buffer>                mConstantBuf;
+  std::vector<DrawOffsets>            mDraws;
+  std::vector<ComPtr<ID3D11Buffer>>   mModelConstants;
+  Scene                               mScene{};
+  ID3D11Device3                      *mDevice;
+  std::array<ComPtr<ID3D11Query>, 60> mGpuDisjointQueries;
+  std::array<ComPtr<ID3D11Query>, 60> mGpuStarts;
+  std::array<ComPtr<ID3D11Query>, 60> mGpuEnds;
 
 public:
   explicit GpuEmulatedDoubleMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
@@ -46,7 +50,11 @@ public:
   void Draw(
     dx::RenderContext      &renderContext,
     ShaderWatcher          &shaderWatcher,
-    ID3D11RenderTargetView *targetView);
+    ID3D11RenderTargetView *targetView,
+    bool                    recordDrawTime,
+    u32                     testFrameCount);
+
+  std::vector<double> GetTimingData(ID3D11DeviceContext3 *ctx);
 };
 
 } // namespace methods

@@ -116,6 +116,13 @@ GpuEmulatedDoubleMethod::GpuEmulatedDoubleMethod(
     mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
     mDevice{device}
 {
+  for (size_t i = 0; i < mGpuDisjointQueries.size(); i++)
+  {
+
+    mGpuDisjointQueries[i] = dx::CreateDisjointQuery(mDevice);
+    mGpuStarts[i]          = dx::CreateTimeQuery(mDevice);
+    mGpuEnds[i]            = dx::CreateTimeQuery(mDevice);
+  }
 }
 
 void GpuEmulatedDoubleMethod::SetScene(const Scene &scene)
@@ -192,7 +199,9 @@ void GpuEmulatedDoubleMethod::Update(
 void GpuEmulatedDoubleMethod::Draw(
   dx::RenderContext      &renderContext,
   ShaderWatcher          &shaderWatcher,
-  ID3D11RenderTargetView *targetView)
+  ID3D11RenderTargetView *targetView,
+  bool                    recordDrawTime,
+  u32                     testFrameCount)
 {
   RenderProgram        rp  = shaderWatcher.GetRenderProgram(mShadersHandle);
   ID3D11DeviceContext *ctx = renderContext.DeviceContext();
@@ -210,12 +219,43 @@ void GpuEmulatedDoubleMethod::Draw(
 
   ctx->PSSetShader(rp.pixelShader, nullptr, 0);
   ctx->OMSetRenderTargets(1, &targetView, renderContext.depthStencilView.Get());
+  if (recordDrawTime)
+  {
+    renderContext.DeviceContext()->Begin(mGpuDisjointQueries[testFrameCount].Get());
+    renderContext.DeviceContext()->End(mGpuStarts[testFrameCount].Get());
+  }
   for (u32 i = 0; i < mDraws.size(); i++)
   {
     const DrawOffsets draw = mDraws[i];
     ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
     ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
   }
+  if (recordDrawTime)
+  {
+    renderContext.DeviceContext()->End(mGpuEnds[testFrameCount].Get());
+    renderContext.DeviceContext()->End(mGpuDisjointQueries[testFrameCount].Get());
+  }
+}
+
+std::vector<double> GpuEmulatedDoubleMethod::GetTimingData(ID3D11DeviceContext3 *ctx)
+{
+  std::vector<double> times;
+  for (size_t i = 0; i < mGpuDisjointQueries.size(); i++)
+  {
+    dx::WaitForQueryToBeReady(ctx, mGpuDisjointQueries[i].Get());
+
+    D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint{};
+    ctx->GetData(mGpuDisjointQueries[i].Get(), &disjoint, sizeof(disjoint), 0);
+
+    u64 start{}, end{};
+    ctx->GetData(mGpuStarts[i].Get(), &start, sizeof(u64), 0);
+    ctx->GetData(mGpuEnds[i].Get(), &end, sizeof(u64), 0);
+
+    double time =
+      static_cast<double>(end - start) / static_cast<double>(disjoint.Frequency) * 1000.0;
+    times.push_back(time);
+  }
+  return times;
 }
 
 } // namespace methods

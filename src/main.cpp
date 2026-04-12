@@ -272,6 +272,11 @@ int main(int argc, char **argv)
   bool runTests        = false;
   i32  testFrame       = 0;
 
+  std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> edStarts;
+  std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> edEnds;
+  std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> imposterStarts;
+  std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> imposterEnds;
+
   while (running)
   {
     lastTime        = currTime;
@@ -413,8 +418,20 @@ int main(int argc, char **argv)
     {
       // RunTests(f32Method, cpuDoubleMethod, emulatedDoubleMethod, parallaxMethod, ctx);
       runTests = true;
+      method   = Method::CpuDouble;
     }
 
+    if (runTests)
+    {
+      if (method == Method::GpuEmulatedDouble)
+      {
+        edStarts[testFrame] = std::chrono::high_resolution_clock::now();
+      }
+      else if (method == Method::Parallax)
+      {
+        imposterStarts[testFrame] = std::chrono::high_resolution_clock::now();
+      }
+    }
     switch (method)
     {
     case Method::F32:
@@ -445,7 +462,7 @@ int main(int argc, char **argv)
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
         glm::dvec3{modelPos});
-      emulatedDoubleMethod.Draw(ctx, shaderWatcher, ctx.backbufferRTV.Get());
+      emulatedDoubleMethod.Draw(ctx, shaderWatcher, ctx.backbufferRTV.Get(), runTests, testFrame);
       break;
     case Method::Parallax:
       parallaxMethod.Draw(
@@ -461,10 +478,23 @@ int main(int argc, char **argv)
         arcballCamera,
         ctx,
         shaderWatcher,
-        ctx.backbufferRTV.Get());
+        ctx.backbufferRTV.Get(),
+        runTests,
+        testFrame);
       break;
     default:
       assert(0);
+    }
+    if (runTests)
+    {
+      if (method == Method::GpuEmulatedDouble)
+      {
+        edEnds[testFrame] = std::chrono::high_resolution_clock::now();
+      }
+      else if (method == Method::Parallax)
+      {
+        imposterEnds[testFrame] = std::chrono::high_resolution_clock::now();
+      }
     }
 
     ImGui::End();
@@ -479,9 +509,23 @@ int main(int argc, char **argv)
       testFrame++;
       if (testFrame >= 60)
       {
-        runTests     = false;
-        auto timings = cpuDoubleMethod.GetTimingData(ctx.DeviceContext());
-        testFrame    = 0;
+        if (method == Method::CpuDouble)
+        {
+          method = Method::GpuEmulatedDouble;
+        }
+        else if (method == Method::GpuEmulatedDouble)
+        {
+          method = Method::Parallax;
+        }
+        else if (method == Method::Parallax)
+        {
+          runTests                   = false;
+          auto cpuDoubleMethodTiming = cpuDoubleMethod.GetTimingData(ctx.DeviceContext());
+          auto emulatedDoubleTimings = emulatedDoubleMethod.GetTimingData(ctx.DeviceContext());
+          auto imposterTimings       = parallaxMethod.GetTimingData(ctx.DeviceContext());
+        }
+        testFrame = 0;
+        testFrame = 0;
       }
     }
   }

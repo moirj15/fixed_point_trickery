@@ -5,6 +5,7 @@
 #include "../scene.hpp"
 #include "../shaderWatcher.hpp"
 
+#include <array>
 #include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
@@ -66,6 +67,12 @@ class Parallax final
   BoundingBox         mBoundingBox;
   glm::vec3           mPos;
 
+  std::array<ComPtr<ID3D11Query>, 60> mGpuDisjointQueries;
+  std::array<ComPtr<ID3D11Query>, 60> mImposterToTexStart;
+  std::array<ComPtr<ID3D11Query>, 60> mImposterToTexEnd;
+  std::array<ComPtr<ID3D11Query>, 60> mDrawImposterCubeStart;
+  std::array<ComPtr<ID3D11Query>, 60> mDrawImposterCubeEnd;
+
 public:
   explicit Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher);
 
@@ -84,7 +91,16 @@ public:
     const ArcballCamera    &arcball,
     dx::RenderContext      &renderContext,
     ShaderWatcher          &shaderWatcher,
-    ID3D11RenderTargetView *targetView);
+    ID3D11RenderTargetView *targetView,
+    bool                    recordDrawTime,
+    u32                     testFrameCount);
+
+  struct Timing
+  {
+    std::vector<double> imposterToTex;
+    std::vector<double> imposterCube;
+  };
+  Timing GetTimingData(ID3D11DeviceContext3 *ctx);
 };
 
 } // namespace methods

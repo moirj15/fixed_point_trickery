@@ -251,6 +251,16 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
   dx::ThrowIfFailed(device->CreateSamplerState(&samplerDesc, mImposterSamplerState.GetAddressOf()));
 
   mImposterTargetCB = dx::CreateConstantBuffer<SceneData>(mDevice, nullptr);
+
+  for (size_t i = 0; i < mGpuDisjointQueries.size(); i++)
+  {
+
+    mGpuDisjointQueries[i]    = dx::CreateDisjointQuery(mDevice);
+    mImposterToTexStart[i]    = dx::CreateTimeQuery(mDevice);
+    mImposterToTexEnd[i]      = dx::CreateTimeQuery(mDevice);
+    mDrawImposterCubeStart[i] = dx::CreateTimeQuery(mDevice);
+    mDrawImposterCubeEnd[i]   = dx::CreateTimeQuery(mDevice);
+  }
 }
 
 void Parallax::SetScene(const Scene &scene)
@@ -338,7 +348,9 @@ void Parallax::Draw(
   const ArcballCamera    &arcball,
   dx::RenderContext      &renderContext,
   ShaderWatcher          &shaderWatcher,
-  ID3D11RenderTargetView *targetView)
+  ID3D11RenderTargetView *targetView,
+  bool                    recordDrawTime,
+  u32                     testFrameCount)
 {
   auto *annotation = renderContext.annotation.Get();
 
@@ -443,7 +455,15 @@ void Parallax::Draw(
     ctx->PSSetSamplers(0, 1, mImposterSamplerState.GetAddressOf());
     ctx->OMSetRenderTargets(1, &targetView, renderContext.depthStencilView.Get());
 
+    if (recordDrawTime)
+    {
+      ctx->End(mDrawImposterCubeStart[testFrameCount].Get());
+    }
     ctx->DrawIndexed(mBBDebugIndexCount, 0, 0);
+    if (recordDrawTime)
+    {
+      ctx->End(mDrawImposterCubeEnd[testFrameCount].Get());
+    }
 
     std::array<ID3D11ShaderResourceView *, 2> np = {nullptr, nullptr};
     ctx->PSSetShaderResources(0, np.size(), np.data());
@@ -493,11 +513,19 @@ void Parallax::Draw(
 
     ctx->PSSetShader(rp.pixelShader, nullptr, 0);
     ctx->OMSetRenderTargets(1, mImposterTarget.GetAddressOf(), mImposterDepthView.Get());
+    if (recordDrawTime)
+    {
+      ctx->End(mImposterToTexStart[testFrameCount].Get());
+    }
     for (u32 i = 0; i < mDraws.size(); i++)
     {
       const DrawOffsets draw = mDraws[i];
       ctx->VSSetConstantBuffers(1, 1, mModelConstants[i].GetAddressOf());
       ctx->DrawIndexed(draw.indexCount, draw.startIndex, draw.baseVertex);
+    }
+    if (recordDrawTime)
+    {
+      ctx->End(mImposterToTexEnd[testFrameCount].Get());
     }
     ID3D11RenderTargetView *np = nullptr;
     ctx->OMSetRenderTargets(1, &np, nullptr);
@@ -521,12 +549,49 @@ void Parallax::Draw(
   glm::vec3 screenCenter = camera * glm::vec4{0, 0, 0, 1};
   screenCenter = glm::translate(glm::mat4(1.0), -screenCenter) * glm::vec4{screenCenter, 1.0};
   ImGui::Text("camera space center: (%f, %f, %f)", screenCenter.x, screenCenter.y, screenCenter.z);
+  if (recordDrawTime)
+  {
+
+    renderContext.DeviceContext()->Begin(mGpuDisjointQueries[testFrameCount].Get());
+  }
   if (DrawTexturedQuadChk)
   {
     RenderToImposterTexture();
     // DrawTexturedQuad();
     DrawImposterCube();
   }
+  if (recordDrawTime)
+  {
+
+    renderContext.DeviceContext()->End(mGpuDisjointQueries[testFrameCount].Get());
+  }
+}
+Parallax::Timing Parallax::GetTimingData(ID3D11DeviceContext3 *ctx)
+{
+  Parallax::Timing times;
+  for (size_t i = 0; i < mGpuDisjointQueries.size(); i++)
+  {
+    dx::WaitForQueryToBeReady(ctx, mGpuDisjointQueries[i].Get());
+
+    D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint{};
+    ctx->GetData(mGpuDisjointQueries[i].Get(), &disjoint, sizeof(disjoint), 0);
+
+    u64 imposterToTexStart{}, imposterToTexEnd{};
+    u64 cubeStart{}, cubeEnd{};
+
+    ctx->GetData(mImposterToTexStart[i].Get(), &imposterToTexStart, sizeof(u64), 0);
+    ctx->GetData(mImposterToTexEnd[i].Get(), &imposterToTexEnd, sizeof(u64), 0);
+    ctx->GetData(mDrawImposterCubeStart[i].Get(), &cubeStart, sizeof(u64), 0);
+    ctx->GetData(mDrawImposterCubeEnd[i].Get(), &cubeEnd, sizeof(u64), 0);
+
+    double imposterToTexTime = static_cast<double>(imposterToTexEnd - imposterToTexStart)
+                               / static_cast<double>(disjoint.Frequency) * 1000.0;
+    double cubeTime =
+      static_cast<double>(cubeEnd - cubeStart) / static_cast<double>(disjoint.Frequency) * 1000.0;
+    times.imposterToTex.push_back(imposterToTexTime);
+    times.imposterCube.push_back(cubeTime);
+  }
+  return times;
 }
 
 } // namespace methods
