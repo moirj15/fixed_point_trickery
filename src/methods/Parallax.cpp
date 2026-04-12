@@ -11,6 +11,67 @@
 namespace methods
 {
 
+static void DoubleToED(double d, float &high, float &low)
+{
+  high = static_cast<float>(d);
+  low  = static_cast<float>(d - high);
+}
+
+struct EmulatedDoubleVec3
+{
+  glm::vec3 high;
+  glm::vec3 low;
+};
+
+static EmulatedDoubleVec3 DoubleToED(const glm::dvec3 &d)
+{
+  EmulatedDoubleVec3 v{};
+  DoubleToED(d.x, v.high.x, v.low.x);
+  DoubleToED(d.y, v.high.y, v.low.y);
+  DoubleToED(d.z, v.high.z, v.low.z);
+  return v;
+}
+
+struct EmulatedDoubleMat4
+{
+  glm::mat4 high;
+  glm::mat4 low;
+};
+
+static EmulatedDoubleMat4 DoubleToED(const glm::dmat4 &d)
+{
+  EmulatedDoubleMat4 m{};
+  for (u32 x = 0; x < 4; x++)
+  {
+    for (u32 y = 0; y < 4; y++)
+    {
+      DoubleToED(d[x][y], m.high[x][y], m.low[x][y]);
+    }
+  }
+  return m;
+}
+
+struct EDSceneData
+{
+  EmulatedDoubleMat4 viewProjection;
+  EmulatedDoubleMat4 model;
+};
+
+struct EDPerMeshData
+{
+  EmulatedDoubleMat4 transform{};
+};
+
+struct EmulatedDoubleVertex
+{
+  EmulatedDoubleVec3 pos;
+  glm::vec3          normal{};
+  glm::vec2          textureCoord{};
+};
+
+using VertexFormat = EmulatedDoubleVertex;
+
+#if 1
 struct SceneData
 {
   glm::mat4 viewProjection;
@@ -21,7 +82,8 @@ struct PerMeshData
   glm::mat4 transform{};
 };
 
-using VertexFormat = ModelVertex;
+// using VertexFormat = ModelVertex;
+#endif
 
 struct BBDebugVertex
 {
@@ -38,6 +100,17 @@ static std::vector<BBDebugVertex> sBBVertices = {
   {{1.0f, 1.0f, 1.0f}, {1, 0, 0}},
   {{-1.0f, -1.0f, 1.0f}, {0, 1, 0}},
   {{1.0f, -1.0f, 1.0f}, {0, 1, 1}},
+};
+
+static std::vector<VertexFormat> sEDBBVertices = {
+  VertexFormat{DoubleToED(glm::dvec3{-1.0f, 1.0f, -1.0f}), {0, 0, 1}},
+  VertexFormat{DoubleToED(glm::dvec3{1.0f, 1.0f, -1.0f}), {0, 1, 0}},
+  VertexFormat{DoubleToED(glm::dvec3{-1.0f, -1.0f, -1.0f}), {1, 0, 0}},
+  VertexFormat{DoubleToED(glm::dvec3{1.0f, -1.0f, -1.0f}), {0, 1, 1}},
+  VertexFormat{DoubleToED(glm::dvec3{-1.0f, 1.0f, 1.0f}), {0, 0, 1}},
+  VertexFormat{DoubleToED(glm::dvec3{1.0f, 1.0f, 1.0f}), {1, 0, 0}},
+  VertexFormat{DoubleToED(glm::dvec3{-1.0f, -1.0f, 1.0f}), {0, 1, 0}},
+  VertexFormat{DoubleToED(glm::dvec3{1.0f, -1.0f, 1.0f}), {0, 1, 1}},
 };
 
 // clang-format off
@@ -67,7 +140,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, position),
+          .AlignedByteOffset    = offsetof(ModelVertex, position),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -76,7 +149,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, normal),
+          .AlignedByteOffset    = offsetof(ModelVertex, normal),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -85,7 +158,7 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(VertexFormat, textureCoord),
+          .AlignedByteOffset    = offsetof(ModelVertex, textureCoord),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
@@ -122,32 +195,50 @@ Parallax::Parallax(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) :
       BB_TEXTURED_PIXEL_PATH,
       {
         {
-          .SemanticName         = "POSITION",
+          .SemanticName         = "POSITION_HIGH",
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(BBDebugVertex, position),
+          .AlignedByteOffset    = offsetof(VertexFormat, pos),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
         {
-          .SemanticName         = "COLOR",
+          .SemanticName         = "POSITION_LOW",
           .SemanticIndex        = 0,
           .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
           .InputSlot            = 0,
-          .AlignedByteOffset    = offsetof(BBDebugVertex, color),
+          .AlignedByteOffset    = offsetof(VertexFormat, pos) + sizeof(glm::vec3),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+        {
+          .SemanticName         = "NORMAL",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32B32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(VertexFormat, normal),
+          .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
+          .InstanceDataStepRate = 0,
+        },
+        {
+          .SemanticName         = "TEXCOORD",
+          .SemanticIndex        = 0,
+          .Format               = DXGI_FORMAT_R32G32_FLOAT,
+          .InputSlot            = 0,
+          .AlignedByteOffset    = offsetof(VertexFormat, textureCoord),
           .InputSlotClass       = D3D11_INPUT_PER_VERTEX_DATA,
           .InstanceDataStepRate = 0,
         },
       })},
-    mBBDebugConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)}
+    mBBDebugConstantBuf{dx::CreateConstantBuffer<EDSceneData>(device, nullptr)}
 {
   mBBDebugIndexCount = sBBIndices.size();
 
-  mBBDebugVertBuf = dx::CreateVertexBuffer<BBDebugVertex>(
+  mBBDebugVertBuf = dx::CreateVertexBuffer<VertexFormat>(
     mDevice,
-    sBBVertices.size(),
-    {sBBVertices.begin(), sBBVertices.end()});
+    sEDBBVertices.size(),
+    {sEDBBVertices.begin(), sEDBBVertices.end()});
   mBBDebugIndexBuf =
     dx::CreateIndexBuffer<u32>(mDevice, sBBIndices.size(), {sBBIndices.begin(), sBBIndices.end()});
 
@@ -272,8 +363,8 @@ void Parallax::SetScene(const Scene &scene)
   mBoundingBox = {};
   mPos         = {};
   mScene       = scene;
-  std::vector<VertexFormat> vertices;
-  std::vector<u32>          indices;
+  std::vector<ModelVertex> vertices;
+  std::vector<u32>         indices;
 
   u32         vertexStart = 0;
   u32         startIndex  = 0;
@@ -300,7 +391,7 @@ void Parallax::SetScene(const Scene &scene)
     startIndex += mesh.indices.size();
   }
   mDrawIDBuf = dx::CreateDrawIDBuffer(mDevice, mDraws.size());
-  mVertBuf   = dx::CreateVertexBuffer<VertexFormat>(
+  mVertBuf   = dx::CreateVertexBuffer<ModelVertex>(
     mDevice,
     vertices.size(),
     std::span{
@@ -365,14 +456,14 @@ void Parallax::Draw(
   D3D11_MAPPED_SUBRESOURCE mapped2{};
   dx::ThrowIfFailed(
     ctx->Map(mBBDebugConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped2));
-  SceneData *data2 = reinterpret_cast<SceneData *>(mapped2.pData);
+  EDSceneData *data2 = reinterpret_cast<EDSceneData *>(mapped2.pData);
 
   glm::mat4 t = glm::scale(
     glm::translate(
       glm::mat4(1.0),
       glm::vec3{modelPos} + glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
     mBoundingBox.GetScale());
-  data2->viewProjection = glm::mat4{cameraProjection} * t;
+  data2->viewProjection = DoubleToED(glm::mat4{cameraProjection} * t);
 
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 

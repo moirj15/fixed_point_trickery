@@ -273,6 +273,10 @@ int main(int argc, char **argv)
   ComPtr<ID3D11Texture2D> stagingTex;
   dx::ThrowIfFailed(ctx.device->CreateTexture2D(&stagingDesc, nullptr, stagingTex.GetAddressOf()));
 
+  std::vector<double> f32DeltaAvgs;
+  std::vector<double> edDeltaAvgs;
+  std::vector<double> imposterDeltaAvgs;
+
   while (running)
   {
     lastTime        = currTime;
@@ -563,17 +567,20 @@ int main(int argc, char **argv)
       if (method == Method::F32)
       {
         auto avg = computeAvgPixelDelta(f32Target.target.Get());
-        std::println("f32 avg pixel diff {}", avg);
+        f32DeltaAvgs.push_back(avg);
+        // std::println("f32 avg pixel diff {}", avg);
       }
       else if (method == Method::GpuEmulatedDouble)
       {
         auto avg = computeAvgPixelDelta(edTarget.target.Get());
-        std::println("ed avg pixel diff {}", avg);
+        edDeltaAvgs.push_back(avg);
+        // std::println("ed avg pixel diff {}", avg);
       }
       else if (method == Method::Parallax)
       {
         auto avg = computeAvgPixelDelta(imposterTarget.target.Get());
-        std::println("imposter avg pixel diff {}", avg);
+        imposterDeltaAvgs.push_back(avg);
+        // std::println("imposter avg pixel diff {}", avg);
       }
       if (testFrame >= 60)
       {
@@ -588,7 +595,25 @@ int main(int argc, char **argv)
         }
         else if (method == Method::Parallax)
         {
-          runComparison = false;
+          runComparison           = false;
+          double f32DeltaAvg      = 0;
+          double edDeltaAvg       = 0;
+          double imposterDeltaAvg = 0;
+          for (u32 i = 0; i < 60; i++)
+          {
+            f32DeltaAvg += f32DeltaAvgs[i];
+            edDeltaAvg += edDeltaAvgs[i];
+            imposterDeltaAvg += imposterDeltaAvgs[i];
+          }
+          f32DeltaAvg /= 60.0;
+          edDeltaAvg /= 60.0;
+          imposterDeltaAvg /= 60.0;
+          std::println("f32 delta avg {}", f32DeltaAvg);
+          std::println("ed delta avg {}", edDeltaAvg);
+          std::println("imposter delta avg {}", imposterDeltaAvg);
+          f32DeltaAvgs      = {};
+          edDeltaAvgs       = {};
+          imposterDeltaAvgs = {};
         }
       }
     }
