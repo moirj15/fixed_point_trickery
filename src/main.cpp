@@ -523,8 +523,19 @@ int main(int argc, char **argv)
           auto cpuDoubleMethodTiming = cpuDoubleMethod.GetTimingData(ctx.DeviceContext());
           auto emulatedDoubleTimings = emulatedDoubleMethod.GetTimingData(ctx.DeviceContext());
           auto imposterTimings       = parallaxMethod.GetTimingData(ctx.DeviceContext());
+
+          std::vector<std::chrono::microseconds> edTimes;
+          std::vector<std::chrono::microseconds> imposterTimes;
+
+          for (size_t i = 0; i < 60; i++)
+          {
+            edTimes.push_back(
+              std::chrono::duration_cast<std::chrono::microseconds>(edEnds[i] - edStarts[i]));
+            imposterTimes.push_back(std::chrono::duration_cast<std::chrono::microseconds>(
+              imposterEnds[i] - imposterStarts[i]));
+          }
+          testFrame = 0;
         }
-        testFrame = 0;
         testFrame = 0;
       }
     }
