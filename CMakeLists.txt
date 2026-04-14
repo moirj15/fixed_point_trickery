@@ -37,7 +37,9 @@ add_executable(fixed_point_trickery
   src/methods/GpuEmulatedDouble.cpp
   src/methods/Parallax.hpp
   src/methods/Parallax.cpp
-)
+  src/methods/RteGpu.hpp
+  src/methods/RteGpu.cpp
+ )
 
 target_compile_definitions(fixed_point_trickery PRIVATE NOMINMAX)
 

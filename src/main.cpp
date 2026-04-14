@@ -5,6 +5,7 @@
 #include "methods/GpuDouble.hpp"
 #include "methods/GpuEmulatedDouble.hpp"
 #include "methods/Parallax.hpp"
+#include "methods/RteGpu.hpp"
 #include "modelLoader.hpp"
 #include "shaderWatcher.hpp"
 #include "utils.hpp"
@@ -32,6 +33,7 @@ enum class Method
 #endif
   GpuEmulatedDouble,
   Parallax,
+  RteGpu
 };
 
 template<typename T>
@@ -239,11 +241,13 @@ int main(int argc, char **argv)
   methods::GpuDoubleMethod         gpuDoubleMethod{ctx.Device(), shaderWatcher};
   methods::GpuEmulatedDoubleMethod emulatedDoubleMethod{ctx.Device(), shaderWatcher};
   methods::Parallax                parallaxMethod{ctx.Device(), shaderWatcher};
+  methods::RteGpuMethod            rteMethod{ctx.Device(), shaderWatcher};
   f32Method.SetScene(scene);
   cpuDoubleMethod.SetScene(scene);
   gpuDoubleMethod.SetScene(scene);
   emulatedDoubleMethod.SetScene(scene);
   parallaxMethod.SetScene(scene);
+  rteMethod.SetScene(scene);
 
   glm::dvec3 modelPos{0.0, 0.0, 0.0};
   glm::dmat4 modelTranslation = glm::identity<glm::dmat4>();
@@ -257,11 +261,14 @@ int main(int argc, char **argv)
   std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> edEnds;
   std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> imposterStarts;
   std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> imposterEnds;
+  std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> rteStarts;
+  std::array<std::chrono::time_point<std::chrono::high_resolution_clock>, 60> rteEnds;
 
   dx::RTV groundTruth    = dx::CreateRenderTargetAndView(ctx.Device());
   dx::RTV f32Target      = dx::CreateRenderTargetAndView(ctx.Device());
   dx::RTV edTarget       = dx::CreateRenderTargetAndView(ctx.Device());
   dx::RTV imposterTarget = dx::CreateRenderTargetAndView(ctx.Device());
+  dx::RTV rteTarget      = dx::CreateRenderTargetAndView(ctx.Device());
   bool    runComparison  = false;
 
   D3D11_TEXTURE2D_DESC stagingDesc{};
@@ -276,6 +283,7 @@ int main(int argc, char **argv)
   std::vector<double> f32DeltaAvgs;
   std::vector<double> edDeltaAvgs;
   std::vector<double> imposterDeltaAvgs;
+  std::vector<double> rteDeltaAvgs;
 
   while (running)
   {
@@ -318,6 +326,10 @@ int main(int argc, char **argv)
     {
       method = Method::Parallax;
     }
+    else if (ImGui::RadioButton("RTE GPU Method", method == Method::RteGpu))
+    {
+      method = Method::RteGpu;
+    }
 
     ImGui::Separator();
 
@@ -336,6 +348,7 @@ int main(int argc, char **argv)
         gpuDoubleMethod.SetScene(scene);
         emulatedDoubleMethod.SetScene(scene);
         parallaxMethod.SetScene(scene);
+        rteMethod.SetScene(scene);
       }
     }
 
@@ -445,6 +458,8 @@ int main(int argc, char **argv)
         targetView = edTarget.view.Get();
       if (method == Method::Parallax)
         targetView = imposterTarget.view.Get();
+      if (method == Method::RteGpu)
+        targetView = rteTarget.view.Get();
 
       ctx.context->ClearRenderTargetView(targetView, clearColor);
     }
@@ -509,6 +524,15 @@ int main(int argc, char **argv)
         targetView,
         runTests,
         testFrame);
+      break;
+    case Method::RteGpu:
+      rteMethod.Update(
+        ctx.DeviceContext(),
+        projection,
+        glm::dmat4{arcballCamera.transform()},
+        glm::dvec3{arcballCamera.eye()},
+        glm::dvec3{modelPos});
+      rteMethod.Draw(ctx, shaderWatcher, targetView, runTests, testFrame);
       break;
     default:
       assert(0);
