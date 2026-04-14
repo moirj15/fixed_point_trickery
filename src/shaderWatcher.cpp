@@ -23,7 +23,9 @@ CompileShader(const std::string &path, const char *entry_point, const char *shad
 #else
   u32 flags = 0;
 #endif
-  flags |= D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_IEEE_STRICTNESS | D3DCOMPILE_ENABLE_STRICTNESS;
+  flags |=
+    /*D3DCOMPILE_SKIP_OPTIMIZATION |*/
+    D3DCOMPILE_IEEE_STRICTNESS /*| D3DCOMPILE_ENABLE_STRICTNESS*/;
 
   HRESULT res = D3DCompile(
     source.data(),

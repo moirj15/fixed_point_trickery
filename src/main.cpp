@@ -198,7 +198,7 @@ int main(int argc, char **argv)
   glm::vec4 v{10.0f, 1.0f, 1.0f, 1.0f};
 
   auto r = t * s * v;
-  printf("%f %f %f", r.x, r.y, r.z);
+  // printf("%f %f %f", r.x, r.y, r.z);
 
   ImGui_ImplSDL2_InitForD3D(window.win);
   ImGui_ImplDX11_Init(ctx.Device(), ctx.DeviceContext());
@@ -656,10 +656,12 @@ int main(int argc, char **argv)
           edDeltaAvg /= 60.0;
           rteDeltaAvg /= 60.0;
           imposterDeltaAvg /= 60.0;
+          std::println("Dist from origin: {}", distanceLables[currentDistance]);
           std::println("f32 delta avg {}", f32DeltaAvg);
           std::println("ed delta avg {}", edDeltaAvg);
           std::println("rte gpu delta avg {}", rteDeltaAvg);
           std::println("imposter delta avg {}", imposterDeltaAvg);
+          std::println("");
           f32DeltaAvgs      = {};
           edDeltaAvgs       = {};
           rteDeltaAvgs      = {};
@@ -731,13 +733,14 @@ int main(int argc, char **argv)
           imposterBoxGpuAvg /= 60.0;
           rteGpuAvg /= 60.0;
           testFrame = 0;
-          std::println("ed cpu Avg: {}", edCpuAvg);
-          std::println("ed gpu Avg: {}", edGpuAvg);
           std::println("rte cpu Avg: {}", rteCpuAvg);
           std::println("rte gpu Avg: {}", rteGpuAvg);
+          std::println("ed cpu Avg: {}", edCpuAvg);
+          std::println("ed gpu Avg: {}", edGpuAvg);
           std::println("imposter cpu Avg: {}", imposterCPUAvg);
           std::println("imposter tex gpu avg: {}", imposterTexGpuAvg);
           std::println("imposter box gpu avg: {}", imposterBoxGpuAvg);
+          std::println("");
         }
         testFrame = 0;
       }
