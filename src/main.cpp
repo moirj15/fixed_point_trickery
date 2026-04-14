@@ -430,6 +430,8 @@ int main(int argc, char **argv)
     // targetView                         = edTarget.view.Get();
     if (runComparison)
     {
+      // ctx.context->ClearDepthStencilView(ctx.depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
+      ctx.context->ClearRenderTargetView(groundTruth.view.Get(), clearColor);
       cpuDoubleMethod.Update(
         ctx.DeviceContext(),
         projection * glm::dmat4{arcballCamera.transform()},
@@ -443,6 +445,8 @@ int main(int argc, char **argv)
         targetView = edTarget.view.Get();
       if (method == Method::Parallax)
         targetView = imposterTarget.view.Get();
+
+      ctx.context->ClearRenderTargetView(targetView, clearColor);
     }
 
     if (runTests)
@@ -552,10 +556,10 @@ int main(int argc, char **argv)
       for (size_t i = 0; i < groundTruthData.size(); i++)
       {
         diffAvg += groundTruthData[i] - d[i];
-        // if (groundTruthData[i] != d[i])
-        //{
-        //   std::println("dif");
-        // }
+        if (d[i] == 0)
+        {
+          // std::println("dif");
+        }
       }
       diffAvg /= (double)groundTruthData.size();
       // std::println("dif {}", diffAvg);

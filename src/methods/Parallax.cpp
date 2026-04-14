@@ -458,12 +458,13 @@ void Parallax::Draw(
     ctx->Map(mBBDebugConstantBuf.Get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped2));
   EDSceneData *data2 = reinterpret_cast<EDSceneData *>(mapped2.pData);
 
-  glm::mat4 t = glm::scale(
+  glm::dmat4 t = glm::scale(
     glm::translate(
-      glm::mat4(1.0),
-      glm::vec3{modelPos} + glm::vec3{mBoundingBox.max + mBoundingBox.min} / 2.0f),
-    mBoundingBox.GetScale());
-  data2->viewProjection = DoubleToED(glm::mat4{cameraProjection} * t);
+      glm::dmat4(1.0),
+      modelPos + glm::dvec3{mBoundingBox.max + mBoundingBox.min} / 2.0),
+    glm::dvec3{mBoundingBox.GetScale()});
+  data2->viewProjection = DoubleToED(cameraProjection /* * t*/);
+  data2->model          = DoubleToED(t);
 
   ctx->Unmap(mBBDebugConstantBuf.Get(), 0);
 
@@ -528,7 +529,7 @@ void Parallax::Draw(
 
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     ctx->IASetIndexBuffer(mBBDebugIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
-    u32 stride = sizeof(BBDebugVertex);
+    u32 stride = sizeof(VertexFormat);
     u32 offset = 0;
     ctx->IASetVertexBuffers(0, 1, mBBDebugVertBuf.GetAddressOf(), &stride, &offset);
     ctx->IASetInputLayout(rp.inputLayout);
@@ -593,7 +594,7 @@ void Parallax::Draw(
 
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     ctx->IASetIndexBuffer(mIndexBuf.Get(), DXGI_FORMAT_R32_UINT, 0);
-    u32 stride = sizeof(VertexFormat);
+    u32 stride = sizeof(ModelVertex);
     u32 offset = 0;
     ctx->IASetVertexBuffers(0, 1, mVertBuf.GetAddressOf(), &stride, &offset);
     ctx->IASetInputLayout(rp.inputLayout);
