@@ -78,6 +78,13 @@ RteGpuMethod::RteGpuMethod(ID3D11Device3 *device, ShaderWatcher &shaderWatcher) 
     mConstantBuf{dx::CreateConstantBuffer<SceneData>(device, nullptr)},
     mDevice{device}
 {
+  for (size_t i = 0; i < mGpuDisjointQueries.size(); i++)
+  {
+
+    mGpuDisjointQueries[i] = dx::CreateDisjointQuery(mDevice);
+    mGpuStarts[i]          = dx::CreateTimeQuery(mDevice);
+    mGpuEnds[i]            = dx::CreateTimeQuery(mDevice);
+  }
 }
 
 static void ToSplitDouble(const glm::dvec3 &v, glm::vec3 &lo, glm::vec3 &hi)
@@ -211,10 +218,7 @@ void RteGpuMethod::Draw(
   ctx->RSSetState(renderContext.rasterizerState.Get());
 
   ctx->PSSetShader(rp.pixelShader, nullptr, 0);
-  ctx->OMSetRenderTargets(
-    1,
-    renderContext.backbufferRTV.GetAddressOf(),
-    renderContext.depthStencilView.Get());
+  ctx->OMSetRenderTargets(1, &targetView, renderContext.depthStencilView.Get());
   if (recordDrawTime)
   {
     renderContext.DeviceContext()->Begin(mGpuDisjointQueries[testFrameCount].Get());

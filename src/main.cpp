@@ -474,6 +474,10 @@ int main(int argc, char **argv)
       {
         imposterStarts[testFrame] = std::chrono::high_resolution_clock::now();
       }
+      else if (method == Method::RteGpu)
+      {
+        rteStarts[testFrame] = std::chrono::high_resolution_clock::now();
+      }
     }
     switch (method)
     {
@@ -547,6 +551,10 @@ int main(int argc, char **argv)
       {
         imposterEnds[testFrame] = std::chrono::high_resolution_clock::now();
       }
+      else if (method == Method::RteGpu)
+      {
+        rteEnds[testFrame] = std::chrono::high_resolution_clock::now();
+      }
     }
 
     ImGui::End();
@@ -610,6 +618,11 @@ int main(int argc, char **argv)
         imposterDeltaAvgs.push_back(avg);
         // std::println("imposter avg pixel diff {}", avg);
       }
+      else if (method == Method::RteGpu)
+      {
+        auto avg = computeAvgPixelDelta(rteTarget.target.Get());
+        rteDeltaAvgs.push_back(avg);
+      }
       if (testFrame >= 60)
       {
         testFrame = 0;
@@ -619,6 +632,10 @@ int main(int argc, char **argv)
         }
         else if (method == Method::GpuEmulatedDouble)
         {
+          method = Method::RteGpu;
+        }
+        else if (method == Method::RteGpu)
+        {
           method = Method::Parallax;
         }
         else if (method == Method::Parallax)
@@ -626,21 +643,26 @@ int main(int argc, char **argv)
           runComparison           = false;
           double f32DeltaAvg      = 0;
           double edDeltaAvg       = 0;
+          double rteDeltaAvg      = 0;
           double imposterDeltaAvg = 0;
           for (u32 i = 0; i < 60; i++)
           {
             f32DeltaAvg += f32DeltaAvgs[i];
             edDeltaAvg += edDeltaAvgs[i];
             imposterDeltaAvg += imposterDeltaAvgs[i];
+            rteDeltaAvg += rteDeltaAvgs[i];
           }
           f32DeltaAvg /= 60.0;
           edDeltaAvg /= 60.0;
+          rteDeltaAvg /= 60.0;
           imposterDeltaAvg /= 60.0;
           std::println("f32 delta avg {}", f32DeltaAvg);
           std::println("ed delta avg {}", edDeltaAvg);
+          std::println("rte gpu delta avg {}", rteDeltaAvg);
           std::println("imposter delta avg {}", imposterDeltaAvg);
           f32DeltaAvgs      = {};
           edDeltaAvgs       = {};
+          rteDeltaAvgs      = {};
           imposterDeltaAvgs = {};
         }
       }
@@ -656,6 +678,10 @@ int main(int argc, char **argv)
         }
         else if (method == Method::GpuEmulatedDouble)
         {
+          method = Method::RteGpu;
+        }
+        else if (method == Method::RteGpu)
+        {
           method = Method::Parallax;
         }
         else if (method == Method::Parallax)
@@ -663,40 +689,52 @@ int main(int argc, char **argv)
           runTests                   = false;
           auto cpuDoubleMethodTiming = cpuDoubleMethod.GetTimingData(ctx.DeviceContext());
           auto emulatedDoubleTimings = emulatedDoubleMethod.GetTimingData(ctx.DeviceContext());
+          auto rteTimings            = rteMethod.GetTimingData(ctx.DeviceContext());
           auto imposterTimings       = parallaxMethod.GetTimingData(ctx.DeviceContext());
 
           std::vector<std::chrono::microseconds> edTimes;
+          std::vector<std::chrono::microseconds> rteTimes;
           std::vector<std::chrono::microseconds> imposterTimes;
 
           for (size_t i = 0; i < 60; i++)
           {
             edTimes.push_back(
               std::chrono::duration_cast<std::chrono::microseconds>(edEnds[i] - edStarts[i]));
+            rteTimes.push_back(
+              std::chrono::duration_cast<std::chrono::microseconds>(rteEnds[i] - rteStarts[i]));
             imposterTimes.push_back(std::chrono::duration_cast<std::chrono::microseconds>(
               imposterEnds[i] - imposterStarts[i]));
           }
 
           std::chrono::microseconds edCpuAvg{};
+          std::chrono::microseconds rteCpuAvg{};
           std::chrono::microseconds imposterCPUAvg{};
           double                    edGpuAvg{};
+          double                    rteGpuAvg{};
           double                    imposterTexGpuAvg{};
           double                    imposterBoxGpuAvg{};
           for (size_t i = 0; i < 60; i++)
           {
             edCpuAvg += edTimes[i];
             imposterCPUAvg += imposterTimes[i];
+            rteCpuAvg += rteTimes[i];
             edGpuAvg += emulatedDoubleTimings[i];
+            rteGpuAvg += rteTimings[i];
             imposterTexGpuAvg += imposterTimings.imposterToTex[i];
             imposterBoxGpuAvg += imposterTimings.imposterCube[i];
           }
           edCpuAvg /= 60.0;
+          rteCpuAvg /= 60.0;
           imposterCPUAvg /= 60.0;
           edGpuAvg /= 60.0;
           imposterTexGpuAvg /= 60.0;
           imposterBoxGpuAvg /= 60.0;
+          rteGpuAvg /= 60.0;
           testFrame = 0;
           std::println("ed cpu Avg: {}", edCpuAvg);
           std::println("ed gpu Avg: {}", edGpuAvg);
+          std::println("rte cpu Avg: {}", rteCpuAvg);
+          std::println("rte gpu Avg: {}", rteGpuAvg);
           std::println("imposter cpu Avg: {}", imposterCPUAvg);
           std::println("imposter tex gpu avg: {}", imposterTexGpuAvg);
           std::println("imposter box gpu avg: {}", imposterBoxGpuAvg);

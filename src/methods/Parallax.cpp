@@ -588,7 +588,7 @@ void Parallax::Draw(
 
     RenderProgram        rp           = shaderWatcher.GetRenderProgram(mShadersHandle);
     ID3D11DeviceContext *ctx          = renderContext.DeviceContext();
-    f32                  clearColor[] = {0.0, 0.0, 0.0, 1.0};
+    f32                  clearColor[] = {0.5, 0.5, 0.5, 1.0};
     ctx->ClearRenderTargetView(mImposterTarget.Get(), clearColor);
     ctx->ClearDepthStencilView(mImposterDepthView.Get(), D3D11_CLEAR_DEPTH, 1.0, 0);
 
