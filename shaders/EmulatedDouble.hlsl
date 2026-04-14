@@ -1,19 +1,19 @@
-float __fmul_rn(precise float a, precise float b)
+float __fmul_rn(float a, float b)
 {
-  precise float ret = a * b;
+  float ret = a * b;
   return ret;
 }
 
 struct SS
 {
-  precise float hs;
-  precise float ls;
+  float hs;
+  float ls;
 };
 
-precise SS add_knuth_and_dekker1(precise float xs, precise float ys)
+SS add_knuth_and_dekker1(float xs, float ys)
 {
-  precise float ws;
-  precise SS z;
+  float ws;
+  SS z;
 
   z.hs = xs + ys;
   ws = z.hs - xs;
@@ -22,10 +22,10 @@ precise SS add_knuth_and_dekker1(precise float xs, precise float ys)
   return z;
 }
 
-precise SS add_knuth_and_dekker2(precise float xs, precise float ys)
+SS add_knuth_and_dekker2(float xs, float ys)
 {
-  precise float ws, vs, z1s, z2s;
-  precise SS z;
+  float ws, vs, z1s, z2s;
+  SS z;
 
   z.hs = xs + ys;
   ws = z.hs - xs;
@@ -37,10 +37,10 @@ precise SS add_knuth_and_dekker2(precise float xs, precise float ys)
   return z;
 }
 
-precise SS dsadd_full(precise SS a, precise SS b)
+SS dsadd_full(SS a, SS b)
 {
-  precise float rs;
-  precise SS z, c;
+  float rs;
+  SS z, c;
 
   z = add_knuth_and_dekker2(a.hs, b.hs);
   rs = a.ls + b.ls + z.ls;
@@ -49,21 +49,21 @@ precise SS dsadd_full(precise SS a, precise SS b)
   return c;
 }
 
-precise SS dssub_full(precise SS a, precise SS b)
+SS dssub_full(SS a, SS b)
 {
-  precise SS c;
-  precise float t1 = a.hs - b.hs;
-  precise float e = t1 - a.hs;
-  precise float t2 = ((-b.hs - e) + (a.hs - (t1 - e))) + a.ls - b.ls;
+  SS c;
+  float t1 = a.hs - b.hs;
+  float e = t1 - a.hs;
+  float t2 = ((-b.hs - e) + (a.hs - (t1 - e))) + a.ls - b.ls;
   c = add_knuth_and_dekker1(t1, t2);
 
   return c;
 }
 
-precise SS dsmul_full(precise SS a, precise SS b)
+SS dsmul_full(SS a, SS b)
 {
-  precise SS sa, sb, c, t, d;
-  precise float cona, conb, c2;
+  SS sa, sb, c, t, d;
+  float cona, conb, c2;
 
   cona = a.hs * 8193.0f;
   conb = b.hs * 8193.0f;
@@ -93,9 +93,9 @@ SS dsadd_F1(SS a, SS b)
   return c;
 }
 
-//precise SS dsadd_F23(precise SS a, precise SS b)
+//  SS dsadd_F23(  SS a,   SS b)
 //{
-//  precise SS c;
+//    SS c;
 //
 //  c = add_knuth_and_dekker1(a.hs, b.hs);
 //  c.ls = c.ls + a.ls + b.ls;
@@ -113,12 +113,12 @@ SS dssub_F1(SS a, SS b)
   return c;
 }
 
-//precise SS dssub_F23(precise SS a, precise SS b)
+//  SS dssub_F23(  SS a,   SS b)
 //{
-//  precise SS c;
+//    SS c;
 //
 //  c.hs = a.hs - b.hs;
-//  precise float e = c.hs - a.hs;
+//    float e = c.hs - a.hs;
 //  c.ls = (-b.hs - e) + a.ls - b.ls;
 //
 //  return c;
@@ -141,9 +141,9 @@ SS dsmul_F12(SS a, SS b)
   return d;
 }
 
-//precise SS dsmul_F3(precise SS a, precise SS b)
+//  SS dsmul_F3(  SS a,   SS b)
 //{
-//  precise SS sa, sb, t, d;
+//    SS sa, sb, t, d;
 //  //sa.hs = __int_as_float(__float_as_int(a.hs) & 0xfffff000);
 //  //sb.hs = __int_as_float(__float_as_int(b.hs) & 0xfffff000);
 //  sa.hs = asfloat(asint(a.hs) & 0xfffff000);
@@ -158,14 +158,14 @@ SS dsmul_F12(SS a, SS b)
 //  return d;
 //}
 
-precise SS dsmul(precise SS a, precise SS b)
+SS dsmul(SS a, SS b)
 {
   //return dsmul_F3(a, b);
   //return dsmul_full(a, b);
   return dsmul_F12(a, b);
 }
 
-precise SS dsadd(precise SS a,precise  SS b)
+SS dsadd(SS a, SS b)
 {
   //return dsadd_F23(a, b);
   //return dsadd_full(a, b);
@@ -174,10 +174,10 @@ precise SS dsadd(precise SS a,precise  SS b)
 
 struct SceneData
 {
-precise   float4x4 vpHigh;
-  precise float4x4 vpLow;
-  precise float4x4 modelHigh;
-  precise float4x4 modelLow;
+  float4x4 vpHigh;
+  float4x4 vpLow;
+  float4x4 modelHigh;
+  float4x4 modelLow;
 };
 
 cbuffer Constants : register(b0)
@@ -187,8 +187,8 @@ cbuffer Constants : register(b0)
 
 struct PerMesh
 {
-  precise float4x4 transformHigh;
-  precise float4x4 transformLow;
+  float4x4 transformHigh;
+  float4x4 transformLow;
 };
 
 cbuffer Constants : register(b1)
@@ -206,26 +206,26 @@ struct Vertex
 
 struct VSOut
 {
-  precise float4 pos : SV_Position;
+  float4 pos : SV_Position;
   float3 color : COLOR;
 };
 
 struct EmulatedDouble3
 {
-  precise float3 high;
-  precise float3 low;
+  float3 high;
+  float3 low;
 };
 
 struct EmulatedDouble4
 {
-  precise float4 high;
-  precise float4 low;
+  float4 high;
+  float4 low;
 };
 
 struct EmulatedDouble4x4
 {
-  precise float4x4 high;
-  precise float4x4 low;
+  float4x4 high;
+  float4x4 low;
 };
 
 EmulatedDouble4x4 EDMul(EmulatedDouble4x4 a, EmulatedDouble4x4 b)
